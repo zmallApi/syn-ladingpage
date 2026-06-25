@@ -68,16 +68,39 @@ Uso: Expor ERP para agentes no Cursor
 📅 25/06/2026, 15:30:00
 ```
 
-## Deploy (Vercel)
+## Deploy (Netlify)
 
-1. Importe o repo na [Vercel](https://vercel.com)
-2. **Root Directory:** `apps/landing`
-3. Adicione as variáveis de ambiente no painel:
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-4. Deploy — a rota `/api/waitlist` funciona automaticamente
+Repositório: [github.com/zmallApi/syn-ladingpage](https://github.com/zmallApi/syn-ladingpage)
 
-Build:
+### Conectar o site
+
+1. Acesse o [painel Netlify](https://app.netlify.com/teams/zmallapi/builds)
+2. **Add new site → Import an existing project**
+3. Conecte o GitHub e selecione `zmallApi/syn-ladingpage`
+4. O `netlify.toml` na raiz já configura tudo — **não precisa alterar** Base directory, Build command ou Publish directory
+
+### Variáveis de ambiente
+
+Em **Site configuration → Environment variables**, adicione:
+
+| Variável | Valor |
+|----------|-------|
+| `TELEGRAM_BOT_TOKEN` | Token do @BotFather |
+| `TELEGRAM_CHAT_ID` | ID do chat/grupo |
+
+Salve e faça **Trigger deploy** (ou push no `main` dispara automaticamente).
+
+### O que o Netlify faz
+
+| Config | Valor (via `netlify.toml`) |
+|--------|---------------------------|
+| Base directory | `apps/landing` |
+| Build | `npm install && npm run build` |
+| Publish | `dist` |
+| Functions | `netlify/functions/waitlist.ts` |
+| Rota API | `POST /api/waitlist` → function |
+
+Build local:
 
 ```bash
 npm run build:landing
@@ -87,22 +110,24 @@ npm run build:landing
 
 ```
 apps/landing/
-├── api/
-│   ├── waitlist.ts       # Serverless → Telegram (produção)
-│   └── lib/telegram.ts   # Formatação e envio
+├── netlify/functions/
+│   └── waitlist.ts       # Serverless → Telegram (produção Netlify)
+├── api/lib/
+│   └── telegram.ts       # Formatação e envio (compartilhado)
 ├── server/
 │   └── dev-api.ts        # API local para desenvolvimento
 ├── src/
 │   ├── components/
 │   └── lib/waitlist.ts   # Cliente HTTP do modal
 └── .env.example
+netlify.toml                # Config de deploy na raiz do repo
 ```
 
 ## Fluxo de conversão
 
 1. Usuário clica **Conectar banco de dados**
 2. Modal coleta nome, e-mail, empresa e uso (opcionais)
-3. `POST /api/waitlist` → API envia mensagem ao Telegram
+3. `POST /api/waitlist` → Netlify Function envia mensagem ao Telegram
 4. Você recebe a notificação no celular/desktop
 
 ## Recuperar os dados
@@ -112,4 +137,3 @@ Os leads ficam no **histórico de mensagens do Telegram** (chat com o bot ou gru
 - Buscar por "Novo lead" no Telegram
 - Fixar o chat / ativar notificações
 - Encaminhar leads para um canal de equipe
-- Exportar manualmente ou usar um bot de logging (futuro: salvar em planilha via Apps Script)
