@@ -1,0 +1,12 @@
+{
+  "name": "iaclient",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:landing": "npm run dev --workspace=@synapse/landing",
+    "build:landing": "npm run build --workspace=@synapse/landing",
+    "preview:landing": "npm run preview --workspace=@synapse/landing"
+  }
+}
