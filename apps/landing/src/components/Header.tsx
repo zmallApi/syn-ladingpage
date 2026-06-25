@@ -4,7 +4,7 @@ export function Header({ onConnect }: { onConnect: () => void }) {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         <a href="#" className="flex items-center gap-2.5">
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <span className="text-base font-semibold tracking-tight text-white">synapse</span>
+          <span className="text-base font-semibold tracking-tight text-white">Synapse</span>
         </a>
 
         <nav className="hidden items-center gap-6 text-sm text-slate-400 md:flex">
