@@ -12,7 +12,6 @@ export function Header({ onConnect }: { onConnect: () => void }) {
         </a>
 
         <nav className="hidden items-center gap-6 text-sm text-slate-400 md:flex">
-          <a href="#demo" className="transition hover:text-white">Demo</a>
           <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
           <a href="#entregaveis" className="transition hover:text-white">Entregáveis</a>
           <a href="#planos" className="transition hover:text-white">Planos</a>
