@@ -92,9 +92,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-cyan">Lista de espera</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-cyan">Acesso Beta</p>
             <h2 id="waitlist-title" className="mt-1 text-lg font-semibold text-white">
-              Entrar na lista de espera
+              Solicitar acesso Beta
             </h2>
           </div>
           <button
@@ -116,9 +116,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white">Você está na lista!</h3>
+            <h3 className="text-xl font-semibold text-white">Solicitação recebida!</h3>
             <p className="mt-2 text-sm text-slate-400">
-              Recebemos seus dados. Entraremos em contato em breve.
+              Você está na fila do Beta. Entraremos em contato com seu acesso antecipado.
             </p>
             <button
               type="button"
@@ -131,7 +131,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         ) : (
           <form onSubmit={handleSubmit} className="px-6 py-5">
             <p className="mb-5 text-sm text-slate-400">
-              Deixe seus dados de contato. Avisaremos quando o early access estiver disponível.
+              Deixe seus dados e receba acesso antecipado ao Beta do Synapsee MCP.
             </p>
 
             <div className="space-y-4">
@@ -195,7 +195,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 disabled={submitting}
                 className="flex-1 rounded-xl cyan-gradient px-4 py-2.5 text-sm font-semibold text-surface transition hover:brightness-110 disabled:opacity-60"
               >
-                {submitting ? "Enviando..." : "Entrar na lista"}
+                {submitting ? "Enviando..." : "Quero testar"}
               </button>
             </div>
           </form>

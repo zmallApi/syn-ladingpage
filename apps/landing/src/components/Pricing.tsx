@@ -33,7 +33,7 @@ export function Pricing({ onConnect }: { onConnect: () => void }) {
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">Planos</p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">Comece pequeno, escale quando precisar</h2>
           <p className="mt-3 text-sm text-slate-400">
-            Entre na lista de espera e garanta condições especiais de early access.
+            Solicite acesso Beta e garanta condições especiais para early adopters.
           </p>
         </div>
 
@@ -78,7 +78,7 @@ export function Pricing({ onConnect }: { onConnect: () => void }) {
             onClick={onConnect}
             className="rounded-xl cyan-gradient px-8 py-3 text-sm font-semibold text-surface shadow-lg shadow-cyan/10 transition hover:brightness-110"
           >
-            Entrar na lista de espera
+            Receber acesso antecipado
           </button>
         </div>
       </div>

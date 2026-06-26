@@ -12,6 +12,7 @@ export function Header({ onConnect }: { onConnect: () => void }) {
         </a>
 
         <nav className="hidden items-center gap-6 text-sm text-slate-400 md:flex">
+          <a href="#quem-precisa" className="transition hover:text-white">Quem precisa</a>
           <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
           <a href="#entregaveis" className="transition hover:text-white">Entregáveis</a>
           <a href="#planos" className="transition hover:text-white">Planos</a>
@@ -22,7 +23,7 @@ export function Header({ onConnect }: { onConnect: () => void }) {
           onClick={onConnect}
           className="rounded-lg cyan-gradient px-4 py-2 text-sm font-semibold text-surface transition hover:brightness-110"
         >
-          Conectar banco
+          Solicitar acesso Beta
         </button>
       </div>
     </header>

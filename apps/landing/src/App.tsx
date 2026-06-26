@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
+import { WhoNeedsIt } from "./components/WhoNeedsIt";
 import { HowItWorks } from "./components/HowItWorks";
 import { Deliverables } from "./components/Deliverables";
 import { Pricing } from "./components/Pricing";
@@ -17,6 +18,7 @@ export default function App() {
       <Header onConnect={openWaitlist} />
       <main>
         <Hero onConnect={openWaitlist} />
+        <WhoNeedsIt />
         <HowItWorks />
         <Deliverables />
         <Pricing onConnect={openWaitlist} />
