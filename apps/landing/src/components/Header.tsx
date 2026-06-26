@@ -1,9 +1,11 @@
+import { Logo } from "./Logo";
+
 export function Header({ onConnect }: { onConnect: () => void }) {
   return (
     <header className="fixed top-0 z-40 w-full border-b border-border/60 bg-surface/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <a href="#" className="flex items-center gap-2.5">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
+        <a href="#" className="group flex items-center gap-2.5">
+          <Logo className="h-7 w-7 transition group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.45)]" />
           <span className="text-base font-semibold tracking-tight text-white">Synapse</span>
         </a>
 

@@ -1,27 +1,4 @@
-function WireframeGlobe() {
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-md">
-      <div className="absolute inset-0 rounded-full bg-cyan/5 blur-3xl glow-orb" />
-      <div className="absolute inset-8 rounded-full border border-cyan/20 float-slow" />
-      <div className="absolute inset-16 rounded-full border border-purple/15 float-slow" style={{ animationDelay: "-2s" }} />
-      <svg viewBox="0 0 200 200" className="relative h-full w-full" fill="none">
-        <circle cx="100" cy="100" r="70" stroke="rgba(0,229,255,0.3)" strokeWidth="0.5" />
-        <ellipse cx="100" cy="100" rx="70" ry="25" stroke="rgba(0,229,255,0.2)" strokeWidth="0.5" />
-        <ellipse cx="100" cy="100" rx="70" ry="25" stroke="rgba(0,229,255,0.15)" strokeWidth="0.5" transform="rotate(60 100 100)" />
-        <ellipse cx="100" cy="100" rx="70" ry="25" stroke="rgba(0,229,255,0.15)" strokeWidth="0.5" transform="rotate(-60 100 100)" />
-        <circle cx="100" cy="100" r="4" fill="#00e5ff" />
-        {[
-          [100, 30], [160, 70], [160, 130], [100, 170], [40, 130], [40, 70],
-        ].map(([cx, cy], i) => (
-          <g key={i}>
-            <line x1="100" y1="100" x2={cx} y2={cy} stroke="rgba(0,229,255,0.15)" strokeWidth="0.5" />
-            <circle cx={cx} cy={cy} r="3" fill="rgba(168,85,247,0.6)" />
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
+import { WireframeGlobe } from "./WireframeGlobe";
 
 export function Hero({ onConnect }: { onConnect: () => void }) {
   return (
@@ -41,7 +18,7 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
               <span className="text-gradient">Transforme seu ERP</span>
               <br />
               <span className="text-white">em uma ferramenta para </span>
-              <span className="text-cyan">ChatGPT e agentes de IA.</span>
+              <span className="text-cyan">Agentes de IA.</span>
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">

@@ -84,3 +84,91 @@ body {
 .cyan-gradient {
   background: linear-gradient(135deg, #00e5ff 0%, #00b8d4 100%);
 }
+
+@keyframes logo-core-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(0.88); }
+}
+
+@keyframes logo-ring-pulse {
+  0%, 100% { opacity: 1; stroke-opacity: 1; }
+  50% { opacity: 0.65; stroke-opacity: 0.65; }
+}
+
+@keyframes logo-spokes-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.25; }
+}
+
+.logo-mark .logo-core-dot {
+  transform-origin: 16px 16px;
+  transform-box: fill-box;
+  animation: logo-core-pulse 2.4s ease-in-out infinite;
+}
+
+.logo-mark .logo-core-ring {
+  transform-origin: 16px 16px;
+  transform-box: fill-box;
+  animation: logo-ring-pulse 2.4s ease-in-out infinite;
+}
+
+.logo-mark .logo-spokes {
+  animation: logo-spokes-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-mark .logo-core-dot,
+  .logo-mark .logo-core-ring,
+  .logo-mark .logo-spokes {
+    animation: none;
+  }
+}
+
+@keyframes globe-core-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.92); }
+}
+
+@keyframes globe-ring-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.15); }
+}
+
+@keyframes globe-outer-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes globe-node-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+.globe-core-dot {
+  transform-origin: 100px 100px;
+  transform-box: fill-box;
+  animation: globe-core-pulse 2.8s ease-in-out infinite;
+}
+
+.globe-core-ring {
+  transform-origin: 100px 100px;
+  transform-box: fill-box;
+  animation: globe-ring-pulse 2.8s ease-in-out infinite;
+}
+
+.globe-outer-ring {
+  animation: globe-outer-pulse 4s ease-in-out infinite;
+}
+
+.globe-node {
+  animation: globe-node-pulse 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-core-dot,
+  .globe-core-ring,
+  .globe-outer-ring,
+  .globe-node {
+    animation: none;
+  }
+}
