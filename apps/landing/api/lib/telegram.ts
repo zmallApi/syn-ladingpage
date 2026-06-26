@@ -14,7 +14,7 @@ function escapeHtml(text: string): string {
 
 export function formatWaitlistMessage(data: WaitlistPayload): string {
   const lines = [
-    "🆕 <b>Novo lead — Synapse</b>",
+    "🆕 <b>Novo lead — Synapsee MCP</b>",
     "",
     `<b>Nome:</b> ${escapeHtml(data.name.trim())}`,
     `<b>E-mail:</b> ${escapeHtml(data.email.trim())}`,

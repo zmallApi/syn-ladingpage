@@ -51,7 +51,7 @@ export function Deliverables() {
               </span>
             </div>
             <div className="rounded-lg border border-border bg-surface p-2 font-mono text-[11px] text-slate-400">
-              mcp://synapse.app/proj_abc123
+              mcp://synapsee.tec.br/proj_abc123
             </div>
             <p className="mt-3 mb-2 text-xs text-slate-500">Ferramentas expostas</p>
             <div className="flex flex-wrap gap-1.5">
@@ -79,7 +79,7 @@ export function Deliverables() {
               <p className="text-xs font-medium text-white">Quick Start</p>
               <pre className="mt-2 overflow-x-auto font-mono text-[10px] leading-relaxed text-slate-400">
 {`curl -H "Authorization: Bearer sk_..."
-  https://api.synapse.app/v1/users`}
+  https://api.synapsee.tec.br/v1/users`}
               </pre>
             </div>
             <p className="mt-3 text-xs text-slate-500">Docs interativos com exemplos por endpoint</p>

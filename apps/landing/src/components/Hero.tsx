@@ -1,4 +1,4 @@
-import { WireframeGlobe } from "./WireframeGlobe";
+import { DemoAnimation } from "./DemoAnimation";
 
 export function Hero({ onConnect }: { onConnect: () => void }) {
   return (
@@ -22,7 +22,7 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              Conecte seu banco de dados. A Synapse mapeia cada tabela, infere relações de negócio
+              Conecte seu banco de dados. O Synapsee MCP mapeia cada tabela, infere relações de negócio
               e gera API REST, servidor MCP e documentação — prontos para ChatGPT, Claude e Cursor.
             </p>
 
@@ -49,7 +49,7 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
             </div>
           </div>
 
-          <WireframeGlobe />
+          <DemoAnimation />
         </div>
       </div>
     </section>
