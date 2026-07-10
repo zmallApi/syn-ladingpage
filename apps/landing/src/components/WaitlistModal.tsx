@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { WaitlistFormData } from "../lib/waitlist";
-import { submitWaitlist } from "../lib/waitlist";
+import {
+  DATABASE_OPTIONS,
+  INTENDED_USE_OPTIONS,
+  submitWaitlist,
+} from "../lib/waitlist";
 
 interface WaitlistModalProps {
   open: boolean;
@@ -11,7 +15,8 @@ const initialForm: WaitlistFormData = {
   name: "",
   email: "",
   company: "",
-  useCase: "",
+  database: "",
+  intendedUse: "",
 };
 
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
@@ -45,6 +50,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       next.email = "Informe um e-mail válido";
     }
+    if (!form.database) next.database = "Selecione um banco de dados";
+    if (!form.intendedUse) next.intendedUse = "Selecione como pretende usar";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -88,9 +95,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="waitlist-title"
-        className="relative w-full max-w-md rounded-2xl border border-border bg-surface-card card-glow"
+        className="relative flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl border border-border bg-surface-card card-glow"
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-cyan">Acesso Beta</p>
             <h2 id="waitlist-title" className="mt-1 text-lg font-semibold text-white">
@@ -110,7 +117,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         </div>
 
         {submitted ? (
-          <div className="px-6 py-10 text-center">
+          <div className="overflow-y-auto px-6 py-10 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green/10">
               <svg className="h-7 w-7 text-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -129,7 +136,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="px-6 py-5">
+          <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-5">
             <p className="mb-5 text-sm text-slate-400">
               Deixe seus dados e receba acesso antecipado ao Beta do Synapsee IA.
             </p>
@@ -165,15 +172,21 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 />
               </Field>
 
-              <Field label="Como pretende usar? (opcional)">
-                <textarea
-                  value={form.useCase}
-                  onChange={(e) => update("useCase", e.target.value)}
-                  placeholder="Ex: expor dados do ERP para agentes de IA no Cursor..."
-                  rows={3}
-                  className={`${inputClass()} resize-none`}
-                />
-              </Field>
+              <OptionGroup
+                label="Qual banco de dados você gostaria de conectar?"
+                options={DATABASE_OPTIONS}
+                value={form.database}
+                error={errors.database}
+                onChange={(value) => update("database", value)}
+              />
+
+              <OptionGroup
+                label="Como pretende usar?"
+                options={INTENDED_USE_OPTIONS}
+                value={form.intendedUse}
+                error={errors.intendedUse}
+                onChange={(value) => update("intendedUse", value)}
+              />
             </div>
 
             {submitError && (
@@ -220,6 +233,46 @@ function Field({
       {children}
       {error && <span className="mt-1 block text-xs text-red-400">{error}</span>}
     </label>
+  );
+}
+
+function OptionGroup({
+  label,
+  options,
+  value,
+  error,
+  onChange,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string;
+  error?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-2 text-xs font-medium text-slate-400">{label}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const selected = value === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(option)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                selected
+                  ? "border-cyan/50 bg-cyan/10 text-cyan"
+                  : "border-border bg-surface-raised text-slate-400 hover:border-border-bright hover:text-slate-200"
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      {error && <span className="mt-1 block text-xs text-red-400">{error}</span>}
+    </fieldset>
   );
 }
 

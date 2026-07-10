@@ -1,8 +1,26 @@
+export const DATABASE_OPTIONS = [
+  "PostgreSQL",
+  "SQL Server",
+  "MySQL",
+  "Oracle",
+  "Outro",
+] as const;
+
+export const INTENDED_USE_OPTIONS = [
+  "ChatGPT",
+  "Claude",
+  "Cursor",
+  "Copilot",
+  "Agente interno",
+  "Ainda estou avaliando",
+] as const;
+
 export interface WaitlistPayload {
   name: string;
   email: string;
   company?: string;
-  useCase?: string;
+  database: string;
+  intendedUse: string;
 }
 
 function escapeHtml(text: string): string {
@@ -23,11 +41,10 @@ export function formatWaitlistMessage(data: WaitlistPayload): string {
   if (data.company?.trim()) {
     lines.push(`<b>Empresa:</b> ${escapeHtml(data.company.trim())}`);
   }
-  if (data.useCase?.trim()) {
-    lines.push(`<b>Uso:</b> ${escapeHtml(data.useCase.trim())}`);
-  }
 
   lines.push(
+    `<b>Banco:</b> ${escapeHtml(data.database)}`,
+    `<b>Uso:</b> ${escapeHtml(data.intendedUse)}`,
     "",
     `📅 ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
   );
@@ -60,15 +77,25 @@ export async function sendTelegramMessage(
 export function validatePayload(body: unknown): WaitlistPayload | null {
   if (!body || typeof body !== "object") return null;
 
-  const { name, email, company, useCase } = body as Record<string, unknown>;
+  const { name, email, company, database, intendedUse } = body as Record<string, unknown>;
 
   if (typeof name !== "string" || !name.trim()) return null;
   if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  if (typeof database !== "string" || !(DATABASE_OPTIONS as readonly string[]).includes(database)) {
+    return null;
+  }
+  if (
+    typeof intendedUse !== "string" ||
+    !(INTENDED_USE_OPTIONS as readonly string[]).includes(intendedUse)
+  ) {
+    return null;
+  }
 
   return {
     name: name.trim(),
     email: email.trim(),
     company: typeof company === "string" ? company : undefined,
-    useCase: typeof useCase === "string" ? useCase : undefined,
+    database,
+    intendedUse,
   };
 }

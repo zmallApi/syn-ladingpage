@@ -2,8 +2,26 @@ export interface WaitlistFormData {
   name: string;
   email: string;
   company: string;
-  useCase: string;
+  database: string;
+  intendedUse: string;
 }
+
+export const DATABASE_OPTIONS = [
+  "PostgreSQL",
+  "SQL Server",
+  "MySQL",
+  "Oracle",
+  "Outro",
+] as const;
+
+export const INTENDED_USE_OPTIONS = [
+  "ChatGPT",
+  "Claude",
+  "Cursor",
+  "Copilot",
+  "Agente interno",
+  "Ainda estou avaliando",
+] as const;
 
 const API_URL = import.meta.env.VITE_WAITLIST_API_URL || "/api/waitlist";
 
