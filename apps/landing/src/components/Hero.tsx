@@ -22,9 +22,9 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              O Synapsee entende automaticamente seu banco de dados, cria APIs, gera um servidor MCP e
-              permite que ChatGPT, Claude, Cursor e outros agentes consultem seu sistema com segurança —
-              sem escrever código de integração.
+              Transforme seu banco de dados em uma interface pronta para agentes de IA. O Synapsee gera
+              automaticamente APIs, documentação e um servidor MCP para que ChatGPT, Claude, Cursor e
+              outros agentes possam acessar seus dados com segurança.
             </p>
 
             <p className="mt-4 max-w-lg rounded-xl border border-border/80 bg-surface-card/60 px-4 py-3 text-sm leading-relaxed text-slate-400">
