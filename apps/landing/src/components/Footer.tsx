@@ -9,7 +9,7 @@ export function Footer() {
           <span>agentes online: 3</span>
         </div>
         <p className="text-xs text-slate-600">
-          © {new Date().getFullYear()} Synapsee MCP. Todos os direitos reservados.
+          © {new Date().getFullYear()} Synapsee IA. Todos os direitos reservados.
         </p>
       </div>
     </footer>

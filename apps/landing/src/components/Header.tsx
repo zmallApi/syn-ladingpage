@@ -7,7 +7,7 @@ export function Header({ onConnect }: { onConnect: () => void }) {
         <a href="#" className="group flex items-center gap-2.5">
           <Logo className="h-7 w-7 transition group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.45)]" />
           <span className="text-base font-semibold tracking-tight text-white">
-            Synapsee <span className="font-medium text-cyan">MCP</span>
+            Synapsee <span className="font-medium text-cyan">IA</span>
           </span>
         </a>
 

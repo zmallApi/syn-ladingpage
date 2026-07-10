@@ -131,7 +131,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         ) : (
           <form onSubmit={handleSubmit} className="px-6 py-5">
             <p className="mb-5 text-sm text-slate-400">
-              Deixe seus dados e receba acesso antecipado ao Beta do Synapsee MCP.
+              Deixe seus dados e receba acesso antecipado ao Beta do Synapsee IA.
             </p>
 
             <div className="space-y-4">

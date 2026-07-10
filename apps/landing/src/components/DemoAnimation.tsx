@@ -111,7 +111,7 @@ export function DemoAnimation() {
             <span className="h-2.5 w-2.5 rounded-full bg-amber/70" />
             <span className="h-2.5 w-2.5 rounded-full bg-green/70" />
           </div>
-          <span className="ml-2 font-mono text-[11px] text-slate-500">Synapsee MCP — demo</span>
+          <span className="ml-2 font-mono text-[11px] text-slate-500">Synapsee IA — demo</span>
           <div className="ml-auto flex gap-1">
             {STAGES.map((s, i) => (
               <span

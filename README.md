@@ -1,6 +1,6 @@
-# Synapsee MCP — Landing Page
+# Synapsee IA — Landing Page
 
-Landing page para validação de demanda do **Synapsee MCP**. Leads da lista de espera são enviados para o **Telegram**.
+Landing page para validação de demanda do **Synapsee IA**. Leads da lista de espera são enviados para o **Telegram**.
 
 ## Quick start
 
@@ -58,7 +58,7 @@ TELEGRAM_CHAT_ID=123456789
 Cada cadastro chega assim no Telegram:
 
 ```
-🆕 Novo lead — Synapsee MCP
+🆕 Novo lead — Synapsee IA
 
 Nome: João Silva
 E-mail: joao@empresa.com
