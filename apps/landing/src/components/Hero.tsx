@@ -15,21 +15,21 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
-              <span className="text-gradient">Transforme seu ERP</span>
+              <span className="text-gradient">Conecte qualquer sistema</span>
               <br />
-              <span className="text-white">em uma ferramenta para </span>
-              <span className="text-cyan">Agentes de IA.</span>
+              <span className="text-white">à </span>
+              <span className="text-cyan">IA em minutos.</span>
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              Conecte seu banco de dados. O Synapsee MCP mapeia cada tabela, infere relações de negócio
-              e gera API REST, servidor MCP e documentação — prontos para ChatGPT, Claude e Cursor.
+              O Synapsee entende automaticamente seu banco de dados, cria APIs, gera um servidor MCP e
+              permite que ChatGPT, Claude, Cursor e outros agentes consultem seu sistema com segurança —
+              sem escrever código de integração.
             </p>
 
             <p className="mt-4 max-w-lg rounded-xl border border-border/80 bg-surface-card/60 px-4 py-3 text-sm leading-relaxed text-slate-400">
-              Compatível com o padrão{" "}
-              <span className="font-medium text-cyan">MCP</span> (Model Context Protocol) — a ponte que
-              permite ChatGPT, Claude e outros agentes utilizarem seu sistema com segurança.
+              <span className="font-medium text-cyan">MCP</span> (Model Context Protocol) é o padrão que
+              permite agentes de IA usarem seu sistema com segurança.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
