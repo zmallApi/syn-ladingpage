@@ -17,6 +17,12 @@ export function Header({ onConnect }: { onConnect: () => void }) {
           <a href="#como-funciona" className="transition hover:text-white">
             Como funciona
           </a>
+          <a href="#edge" className="transition hover:text-white">
+            Edge
+          </a>
+          <a href="#por-que-synapsee" className="transition hover:text-white">
+            Por que Synapsee
+          </a>
           <a href="#entregaveis" className="transition hover:text-white">
             Capacidades
           </a>

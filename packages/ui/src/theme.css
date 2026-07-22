@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #06080f;
+  --color-surface-raised: #0c1019;
+  --color-surface-card: #0f1520;
+  --color-border: #1a2235;
+  --color-border-bright: #243049;
+  --color-cyan: #00e5ff;
+  --color-cyan-dim: #00b8d4;
+  --color-purple: #a855f7;
+  --color-green: #22c55e;
+  --color-amber: #f59e0b;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(0, 229, 255, 0.25);
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.card-glow {
+  box-shadow:
+    0 0 0 1px rgba(26, 34, 53, 0.8),
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.card-glow:hover {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.15),
+    0 8px 32px rgba(0, 229, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cyan-gradient {
+  background: linear-gradient(135deg, #00e5ff 0%, #00b8d4 100%);
+}
+
+@keyframes demo-dots {
+  0%, 20% { content: ""; }
+  40% { content: "."; }
+  60% { content: ".."; }
+  80%, 100% { content: "..."; }
+}
+
+.demo-dots::after {
+  content: "";
+  animation: demo-dots 1.4s steps(1) infinite;
+}

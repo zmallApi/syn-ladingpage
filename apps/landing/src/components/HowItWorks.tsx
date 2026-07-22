@@ -2,29 +2,31 @@ const steps = [
   {
     n: "01",
     title: "Conectar",
-    text: "Ligamos ao sistema da empresa. Os dados não saem de lá.",
+    text: "Cloud ou Edge. Os dados não saem do ambiente da empresa.",
   },
   {
     n: "02",
     title: "Entender",
-    text: "Interpretamos como a empresa funciona — conceitos, relações, processos.",
+    text: "Transformamos o conhecimento da empresa em capacidades que agentes conseguem utilizar.",
   },
   {
     n: "03",
     title: "Especializar",
-    text: "Sugerimos capacidades por resultado: cobrar, reter, vender, atender.",
+    text: "Sugerimos capacidades concretas: encontrar inadimplentes, priorizar cobranças…",
   },
   {
     n: "04",
-    title: "Ensinar à IA",
-    text: "Você aprova. Só então a IA recebe o que pode fazer.",
+    title: "Publicar",
+    text: "Você aprova. Só então as capacidades entram no MCP para os agentes.",
   },
   {
     n: "05",
-    title: "Executar",
-    text: "Agentes respondem com o conhecimento da empresa — sob o seu controle.",
+    title: "Usar",
+    text: "Agentes perguntam em linguagem natural e respondem com o conhecimento da empresa.",
   },
 ];
+
+const concepts = ["Clientes", "Cobranças", "Vendas", "Contratos", "Processos"];
 
 export function HowItWorks() {
   return (
@@ -33,12 +35,32 @@ export function HowItWorks() {
         <div className="mb-12 text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">Como funciona</p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            Do sistema da empresa à IA — com entendimento no meio
+            Do conhecimento preso nos sistemas à IA que usa esse conhecimento
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400">
-            Não entregamos um protocolo. Entregamos uma camada de entendimento entre o que a
-            empresa já sabe e o que a IA precisa usar.
+            O Synapsee não conecta tabelas à IA. Ele conecta o conhecimento da empresa —
+            e você publica só o que aprova.
           </p>
+        </div>
+
+        <div className="mx-auto mb-12 max-w-2xl rounded-2xl border border-border bg-surface-card p-6 card-glow sm:p-8">
+          <p className="text-center text-xs font-medium uppercase tracking-widest text-cyan">
+            Camada semântica
+          </p>
+          <p className="mt-3 text-center text-sm text-slate-400">
+            Em português: a IA deixa de enxergar tabelas. Passa a enxergar o negócio.
+          </p>
+          <p className="my-4 text-center font-mono text-lg text-slate-600">↓</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {concepts.map((c) => (
+              <span
+                key={c}
+                className="rounded-lg border border-cyan/20 bg-cyan/5 px-3 py-1.5 text-sm font-medium text-cyan"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

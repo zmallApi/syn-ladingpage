@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: synapsee-pg
+    environment:
+      POSTGRES_USER: synapsee
+      POSTGRES_PASSWORD: synapsee
+      POSTGRES_DB: erpclient
+    ports:
+      # 5432 costuma estar ocupada — demo Synapsee em 5433
+      - "5433:5432"
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - synapsee_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapsee -d erpclient"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    container_name: synapsee-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: synapsee
+      MYSQL_DATABASE: erpclient
+      MYSQL_USER: synapsee
+      MYSQL_PASSWORD: synapsee
+    ports:
+      # 3306 costuma estar ocupada — demo Synapsee em 3307
+      - "3307:3306"
+    volumes:
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - synapsee_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-usynapsee", "-psynapsee"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  synapsee_pg_data:
+  synapsee_mysql_data:

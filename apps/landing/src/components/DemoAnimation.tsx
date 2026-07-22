@@ -1,21 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-type Stage = "connect" | "understand" | "specialize" | "teach";
+type Stage = "connect" | "understand" | "specialize" | "publish";
 
 const STAGE_MS: Record<Stage, number> = {
   connect: 5200,
   understand: 7200,
   specialize: 7500,
-  teach: 7000,
+  publish: 7500,
 };
 
-const STAGES: Stage[] = ["connect", "understand", "specialize", "teach"];
+const STAGES: Stage[] = ["connect", "understand", "specialize", "publish"];
 
 const CAPABILITIES = [
-  "Cobrar inadimplentes",
-  "Descobrir clientes em risco",
-  "Encontrar oportunidades de venda",
-  "Entender histórico do cliente",
+  "Encontrar inadimplentes",
+  "Calcular dias de atraso",
+  "Priorizar cobranças",
+  "Quem pode cancelar",
 ];
 
 export function DemoAnimation() {
@@ -42,7 +42,7 @@ export function DemoAnimation() {
           ? [700, 2200, 4000, 5800]
           : stage === "specialize"
             ? [700, 1800, 3000, 4200, 5600]
-            : [900, 2800, 4800];
+            : [900, 2200, 3800, 5200];
     delays.forEach((ms, i) => {
       window.setTimeout(() => setPhase(i + 1), ms);
     });
@@ -67,7 +67,6 @@ export function DemoAnimation() {
         </div>
 
         <div className="relative min-h-[340px] p-5">
-          {/* Connect */}
           <Stage visible={stage === "connect"}>
             <Label>Conectar</Label>
             <p
@@ -82,18 +81,17 @@ export function DemoAnimation() {
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Os dados continuam onde estão.
+              Cloud ou Edge — dados continuam onde estão.
             </p>
             <p
               className={`mt-8 text-sm text-cyan transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Pronto para entender.
+              Pronto para entender o negócio.
             </p>
           </Stage>
 
-          {/* Understand */}
           <Stage visible={stage === "understand"}>
             <Label>Entender</Label>
             <p
@@ -101,33 +99,32 @@ export function DemoAnimation() {
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Entendi como a empresa funciona.
+              Conhecimento da empresa interpretado.
             </p>
             <div
               className={`mt-6 space-y-2 text-sm transition duration-700 ${
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              <p className="text-slate-500">clientes</p>
-              <p className="text-cyan">→ quem compra, atrasa, cancela</p>
+              <p className="text-slate-500">Empresa → conhecimento</p>
+              <p className="text-cyan">→ papéis, processos, relações</p>
             </div>
             <p
               className={`mt-4 text-sm text-slate-400 transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Não é renomear. É interpretar o negócio.
+              Não é renomear tabelas. É liberar o que a empresa já sabe.
             </p>
             <p
               className={`mt-6 text-sm text-slate-300 transition duration-700 ${
                 phase >= 4 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Conceitos e processos identificados.
+              Camada semântica: clientes, cobranças, vendas — não só tabelas.
             </p>
           </Stage>
 
-          {/* Specialize */}
           <Stage visible={stage === "specialize"}>
             <Label>Especializar</Label>
             <p
@@ -135,7 +132,7 @@ export function DemoAnimation() {
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Seu sistema já sabe fazer isto:
+              Capacidades concretas sugeridas:
             </p>
             <ul className="mt-4 space-y-2.5">
               {CAPABILITIES.map((c, i) => (
@@ -155,35 +152,41 @@ export function DemoAnimation() {
                 phase >= 5 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Deseja ensinar essas capacidades à IA?
+              Publicar para os agentes?
             </p>
           </Stage>
 
-          {/* Teach */}
-          <Stage visible={stage === "teach"}>
-            <Label>Ensinar à IA</Label>
+          <Stage visible={stage === "publish"}>
+            <Label>Publicar → Usar</Label>
             <p
               className={`mt-4 text-lg font-medium text-white transition duration-700 ${
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Capacidades aprovadas.
+              Capacidades publicadas no MCP.
             </p>
-            <div
-              className={`mt-6 rounded-2xl border border-border/80 bg-surface px-4 py-3 transition duration-700 ${
+            <ul
+              className={`mt-4 space-y-2 text-sm transition duration-700 ${
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              <p className="text-sm text-slate-400">Quem está em risco de cancelar?</p>
-              <p className="mt-2 text-sm font-medium text-white">12 clientes em risco</p>
-              <p className="mt-1 text-xs text-slate-500">Especialista em Reter Clientes</p>
-            </div>
+              <li className="font-mono text-cyan">cap_list_at_risk</li>
+              <li className="font-mono text-cyan">cap_party_360</li>
+              <li className="font-mono text-cyan">cap_overdue_ledger</li>
+            </ul>
             <p
               className={`mt-6 text-sm text-slate-400 transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              A IA trabalha com o conhecimento da empresa.
+              Cursor, Claude e ChatGPT passam a usar o conhecimento da empresa.
+            </p>
+            <p
+              className={`mt-4 text-sm font-medium text-white transition duration-700 ${
+                phase >= 4 ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              Você aprovou. A IA executa.
             </p>
           </Stage>
         </div>

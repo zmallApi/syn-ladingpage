@@ -1,8 +1,8 @@
-# Synapsee IA — Landing Page
+# Synapsee IA
 
-Landing page para validação de demanda do **Synapsee IA**. Leads da lista de espera são enviados para o **Telegram**.
+Monorepo: **landing** (marketing) + **admin** (operação do backend) + design tokens compartilhados.
 
-## Quick start
+## Quick start — Landing
 
 ```bash
 # Na raiz do monorepo
@@ -15,7 +15,54 @@ cp apps/landing/.env.example apps/landing/.env.local
 npm run dev:landing
 ```
 
-Abre em [http://localhost:5173](http://localhost:5173). A API local roda em `:3001` (proxy automático).
+Abre em [http://localhost:5173](http://localhost:5173). A API local do waitlist roda em `:3001` (proxy automático).
+
+## Quick start — Admin
+
+Painel operacional com wizard visual (conectar → schema → gerar → testar), mesmo design da landing.
+
+```bash
+npm install
+cp apps/admin/.env.example apps/admin/.env   # VITE_USE_MOCK=true por padrão
+npm run dev:admin
+```
+
+Abre em [http://localhost:5174](http://localhost:5174).
+
+1. Login com qualquer API key (modo mock)
+2. **Novo projeto** → preencha conexão → Conectar
+3. Selecione recursos → Expor e gerar API
+4. Teste GET no playground
+
+### Variáveis do admin
+
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `VITE_USE_MOCK` | `true` | Mock em localStorage (sem backend) |
+| `VITE_API_URL` | vazio | Base da API; vazio usa proxy Vite → `localhost:3000` |
+
+Com API real:
+
+```env
+VITE_USE_MOCK=false
+VITE_API_URL=http://localhost:3000
+```
+
+```bash
+npm run build:admin
+```
+
+### Estrutura admin
+
+```
+apps/admin/
+├── src/
+│   ├── pages/          # Login, Projects, Wizard, Detail, Engines, Settings
+│   ├── components/     # Shell, StageRail, ConnectionForm, ApiPlayground...
+│   └── lib/            # api.ts, mock.ts, types.ts
+packages/ui/
+└── src/theme.css       # tokens Tailwind compartilhados (dark/cyan)
+```
 
 ## Configurar Telegram
 

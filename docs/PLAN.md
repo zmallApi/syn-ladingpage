@@ -1,13 +1,16 @@
-# Plano IAClient — Fase 1 MVP
+# Plano Synapsee IA — Fase 1 MVP (multi-banco)
 
 > Stack: Node.js + TypeScript + Fastify  
-> Escopo: Fase 1 — PostgreSQL → introspecção → API REST + OpenAPI
+> Escopo: Fase 1 — **qualquer banco (SQL ou NoSQL)** via adapters → introspecção → API REST + OpenAPI  
+> Adapter de referência no MVP: **PostgreSQL** (os demais entram por interface + roadmap)
 
 ## Contexto
 
-Projeto **greenfield** em `c:\Projeto\IAClient`. Stack escolhida: **Node.js + TypeScript + Fastify**. Escopo do primeiro entregável: **Fase 1** (PostgreSQL → introspecção → API REST + OpenAPI).
+Projeto **greenfield** em `c:\Projeto\IAClient`. Stack: **Node.js + TypeScript + Fastify**.
 
-A proposta de longo prazo (capacidades de negócio, MCP, agentes, SaaS) orienta a arquitetura, mas **não entra no MVP** — apenas deixamos interfaces e pastas prontas para evoluir sem reescrever.
+Posicionamento do produto: **conectar qualquer sistema à IA em minutos** — o cliente escolhe o banco (PostgreSQL, SQL Server, MySQL, Oracle, MongoDB, etc.); a plataforma introspecta o schema/coleções e gera API + (depois) MCP **sem importar dados**.
+
+A proposta de longo prazo (capacidades de negócio, MCP, agentes, SaaS) orienta a arquitetura, mas **não entra no MVP** — apenas interfaces e pastas prontas para evoluir sem reescrever.
 
 ---
 
@@ -16,42 +19,178 @@ A proposta de longo prazo (capacidades de negócio, MCP, agentes, SaaS) orienta 
 ```mermaid
 flowchart TB
     subgraph userLayer [Usuario]
-        ConfigForm[ConfigConexao]
-        TableSelect[SelecaoTabelas]
+        ConfigForm[ConfigConexao_com_engine]
+        ResourceSelect[SelecaoRecursos]
         Client[ClienteHTTP]
     end
 
-    subgraph platform [IAClient Platform]
+    subgraph platform [Synapsee Platform]
         API[FastifyAPI]
         ConnMgr[ConnectionManager]
-        Introspector[SchemaIntrospector]
+        Registry[AdapterRegistry]
         GenREST[RestGenerator]
         GenOpenAPI[OpenAPIGenerator]
         MetaStore[(SQLiteMetadata)]
     end
 
+    subgraph adapters [DatabaseAdapters]
+        PgAdapter[PostgreSQL]
+        MysqlAdapter[MySQL]
+        MssqlAdapter[SQLServer]
+        OracleAdapter[Oracle]
+        MongoAdapter[MongoDB]
+        MoreAdapters[Outros]
+    end
+
     subgraph target [BancoCliente]
-        PG[(PostgreSQL)]
+        ClientDB[(SQL_ou_NoSQL)]
     end
 
     ConfigForm --> API
-    TableSelect --> API
+    ResourceSelect --> API
     Client --> GenREST
     API --> ConnMgr
     API --> MetaStore
-    ConnMgr --> Introspector
-    Introspector --> PG
-    Introspector --> MetaStore
-    GenREST --> PG
+    ConnMgr --> Registry
+    Registry --> PgAdapter
+    Registry --> MysqlAdapter
+    Registry --> MssqlAdapter
+    Registry --> OracleAdapter
+    Registry --> MongoAdapter
+    Registry --> MoreAdapters
+    PgAdapter --> ClientDB
+    MysqlAdapter --> ClientDB
+    MssqlAdapter --> ClientDB
+    OracleAdapter --> ClientDB
+    MongoAdapter --> ClientDB
+    MoreAdapters --> ClientDB
+    GenREST --> Registry
     GenOpenAPI --> MetaStore
     Client --> GenOpenAPI
 ```
 
 **Fluxo principal:**
-1. Usuário registra conexão (host, porta, banco, usuário, senha).
-2. Plataforma testa conexão e introspecta `information_schema`.
-3. Usuário escolhe quais tabelas expor.
+1. Usuário registra conexão: **engine** (ex.: `postgresql`), host, porta, banco, usuário, senha (e opções específicas do engine).
+2. Plataforma resolve o adapter, testa conexão e introspecta o schema / coleções.
+3. Usuário escolhe quais **recursos** expor (tabelas SQL ou coleções NoSQL).
 4. API dinâmica e `/openapi.json` ficam disponíveis para esse projeto.
+
+---
+
+## Princípio de dados (obrigatório)
+
+**A plataforma nunca importa, copia, faz dump nem replica a base do cliente.**
+
+Os dados de negócio permanecem no ambiente do cliente. O Synapsee só:
+
+| Faz | Não faz |
+|-----|---------|
+| Conecta no banco remoto do cliente (SQL ou NoSQL) | Dump / restore / export bulk |
+| Lê metadados de schema (tabelas/coleções, campos, chaves, índices) | Copiar documentos ou linhas inteiras |
+| Guarda no SQLite só metadados da plataforma (credenciais criptografadas, recursos expostos, engine) | Hospedar uma segunda cópia dos dados do cliente |
+| Em cada request da API/MCP, consulta **ao vivo** no banco do cliente via adapter | ETL / sync periódico para storage nosso |
+
+```mermaid
+flowchart LR
+  Agent[Agente_ou_ClienteHTTP] --> Synapsee[SynapseeAPI]
+  Synapsee -->|"1 introspeccao schema"| ClientDB[(Banco_cliente)]
+  Synapsee -->|"2 queries sob demanda"| ClientDB
+  Synapsee --> Meta[(SQLite_so_metadados)]
+```
+
+**Motivos:** privacidade/LGPD, menor superfície de ataque, dados sempre atuais, escala sem storage proporcional ao cliente.
+
+**Preferência de conexão:** usuário com permissão **somente leitura** quando o caso de uso for consulta.
+
+---
+
+## Arquitetura de adapters (multi-banco)
+
+Toda lógica específica de vendor fica atrás de uma interface comum. Core e API **não** conhecem drivers (`pg`, `mongodb`, etc.) diretamente.
+
+```typescript
+// packages/core/src/adapters/types.ts (conceitual)
+
+type DatabaseEngine =
+  | "postgresql"
+  | "mysql"
+  | "sqlserver"
+  | "oracle"
+  | "mongodb"
+  | "sqlite"      // remoto/file — futuro
+  | "mariadb"     // alias MySQL
+  | string        // extensível
+
+interface ConnectionConfig {
+  engine: DatabaseEngine
+  host: string
+  port: number
+  database: string
+  username: string
+  password: string
+  options?: Record<string, unknown>  // SSL, authSource, serviceName, etc.
+}
+
+/** Recurso genérico: tabela SQL ou collection NoSQL */
+interface ResourceMeta {
+  name: string                 // "clientes" | "orders"
+  schema?: string              // SQL: public, dbo...
+  kind: "table" | "collection" | "view"
+  fields: FieldMeta[]
+  primaryKey?: string[]
+  foreignKeys?: ForeignKeyMeta[]
+}
+
+interface SchemaSnapshot {
+  engine: DatabaseEngine
+  resources: ResourceMeta[]
+}
+
+interface DatabaseAdapter {
+  readonly engine: DatabaseEngine
+  testConnection(config: ConnectionConfig): Promise<void>
+  introspect(config: ConnectionConfig): Promise<SchemaSnapshot>
+  list(
+    config: ConnectionConfig,
+    resource: ResourceMeta,
+    opts: { limit: number; offset: number; filter?: Record<string, unknown> }
+  ): Promise<unknown[]>
+  getById(
+    config: ConnectionConfig,
+    resource: ResourceMeta,
+    id: string | number
+  ): Promise<unknown | null>
+  insert(
+    config: ConnectionConfig,
+    resource: ResourceMeta,
+    data: Record<string, unknown>
+  ): Promise<unknown>
+  close?(projectId: string): Promise<void>
+}
+```
+
+### Mapeamento SQL vs NoSQL
+
+| Conceito unificado | SQL | NoSQL (ex. MongoDB) |
+|--------------------|-----|---------------------|
+| Resource | tabela / view | collection |
+| Field | coluna tipada | campo inferido por sample + indexes |
+| Primary key | PK / serial | `_id` |
+| List / getById / insert | `SELECT` / `INSERT` | `find` / `findOne` / `insertOne` |
+| Introspecção | `information_schema` / catalog | `listCollections` + sample docs + indexes |
+
+### Engines suportados (roadmap)
+
+| Engine | Família | MVP | Notas |
+|--------|---------|-----|-------|
+| **PostgreSQL** | SQL | **Sim (referência)** | Primeiro adapter completo |
+| MySQL / MariaDB | SQL | Pronto (adapter `mysql`) | `information_schema` + `mysql2` |
+| SQL Server | SQL | Pós-MVP | Catalog `sys` / `INFORMATION_SCHEMA` |
+| Oracle | SQL | Pós-MVP | `ALL_TABLES` / `ALL_TAB_COLUMNS` |
+| **MongoDB** | NoSQL | Pós-MVP (prioridade NoSQL) | Collections + sample schema |
+| Redis / Elasticsearch / DynamoDB | NoSQL | Futuro | Só se houver demanda clara |
+
+Novos engines = novo arquivo em `packages/core/src/adapters/<engine>/` + registro no `AdapterRegistry`. Sem mudar rotas da API.
 
 ---
 
@@ -59,16 +198,16 @@ flowchart TB
 
 | Camada | Escolha | Motivo |
 |--------|---------|--------|
-| Runtime | Node.js 20+ | Ecossistema forte para API, MCP e SDK futuros |
-| Linguagem | TypeScript strict | Tipagem do schema introspectado |
-| HTTP | Fastify | Leve, plugins maduros (swagger, rate-limit) |
-| PostgreSQL client | `pg` | Queries dinâmicas sem ORM fixo |
-| Validação | Zod | Schemas de request/response |
-| Metadata local | SQLite via `better-sqlite3` | Perfis de conexão e tabelas expostas |
-| OpenAPI | `@fastify/swagger` + geração dinâmica | `/openapi.json` e UI opcional |
-| Monorepo | pnpm workspaces | Separa `core` (lógica) de `api` (servidor) |
+| Runtime | Node.js 20+ | Ecossistema forte para API, MCP e SDK |
+| Linguagem | TypeScript strict | Tipagem do schema unificado |
+| HTTP | Fastify | Leve, plugins maduros |
+| Drivers (por adapter) | `pg`, `mysql2`, `mssql`, `oracledb`, `mongodb` | Só no adapter correspondente |
+| Validação | Zod | Request/response + config por engine |
+| Metadata local | SQLite via `better-sqlite3` | Só metadados da plataforma — **nunca dados do cliente** |
+| OpenAPI | geração dinâmica | `/openapi.json` e UI opcional |
+| Monorepo | npm/pnpm workspaces | `core` (adapters + generators) separado de `api` |
 
-**Não usar Prisma/Drizzle no alvo do cliente** — o schema é desconhecido e dinâmico; introspecção + SQL parametrizado é o caminho correto.
+**Não usar Prisma/Drizzle no alvo do cliente** — schema dinâmico e multi-engine; adapter + queries/comandos parametrizados.
 
 ---
 
@@ -76,38 +215,41 @@ flowchart TB
 
 ```
 IAClient/
-├── package.json                 # pnpm workspace root
-├── pnpm-workspace.yaml
-├── .env.example
-├── README.md
+├── package.json
 ├── apps/
 │   └── api/
-│       ├── package.json
 │       └── src/
 │           ├── main.ts
-│           ├── plugins/         # auth, rate-limit (stubs Fase 2)
+│           ├── plugins/
 │           └── routes/
 │               ├── connections.ts
 │               ├── introspection.ts
 │               ├── expose.ts
-│               └── generated.ts   # rotas dinâmicas
+│               └── generated.ts
 └── packages/
     ├── core/
     │   └── src/
-    │       ├── connection/      # testar + pool por projeto
-    │       ├── introspection/   # information_schema
+    │       ├── adapters/
+    │       │   ├── types.ts              # DatabaseAdapter, SchemaSnapshot
+    │       │   ├── registry.ts           # resolve(engine) → adapter
+    │       │   ├── postgresql/           # MVP — implementação completa
+    │       │   ├── mysql/                # ready (mysql2)
+    │       │   ├── sqlserver/            # stub
+    │       │   ├── oracle/               # stub
+    │       │   └── mongodb/              # stub NoSQL
+    │       ├── connection/               # orquestra test + pool via registry
     │       ├── generator/
-    │       │   ├── rest.ts
+    │       │   ├── rest.ts               # usa adapter.list/getById/insert
     │       │   └── openapi.ts
-    │       └── types/           # TableMeta, ColumnMeta, Project
+    │       └── types/
     └── storage/
         └── src/
-            ├── projects.ts      # CRUD metadata SQLite
-            └── crypto.ts        # criptografar senhas em repouso
+            ├── projects.ts
+            └── crypto.ts
 ```
 
-Interfaces futuras (vazias ou com tipos apenas):
-- `packages/core/src/capabilities/` — Fase 2 (ferramentas de negócio)
+Interfaces futuras:
+- `packages/core/src/capabilities/` — Fase 2
 - `packages/mcp/` — Fase 2
 - `packages/sdk/` — Fase 2
 
@@ -116,169 +258,164 @@ Interfaces futuras (vazias ou com tipos apenas):
 ## Modelo de dados da plataforma (SQLite)
 
 ```typescript
-// Conceitual — packages/core/src/types/project.ts
 Project {
   id: string
   name: string
+  engine: DatabaseEngine       // "postgresql" | "mysql" | "mongodb" | ...
   host: string
   port: number
   database: string
   username: string
   passwordEncrypted: string
-  exposedTables: string[]      // ex: ["clientes", "vendas"]
+  optionsJson?: string         // SSL, authSource, serviceName, etc.
+  exposedResources: string[]   // tabelas ou collections — ex: ["clientes", "orders"]
   createdAt: Date
 }
 ```
 
-Cada **Project** = 1 banco conectado. Na Fase 1, multi-banco = múltiplos projects (base para planos Starter/Pro depois).
+Cada **Project** = 1 conexão a 1 banco. Multi-banco do cliente = múltiplos projects (base para planos Starter/Pro).
 
 ---
 
 ## Módulos e responsabilidades
 
-### 1. Connection Manager
-- Endpoint: `POST /projects` — cria projeto e valida conexão (`SELECT 1`).
-- Endpoint: `GET /projects/:id/test` — health check.
-- Pool `pg` por project, com timeout e limite de conexões.
-- Senha **nunca** retornada em responses; armazenada criptografada (`AES-256-GCM` + chave em `ENCRYPTION_KEY`).
+### 1. Connection Manager + Adapter Registry
+- `POST /projects` — body inclui `engine`; resolve adapter; valida conexão (`testConnection`).
+- `GET /projects/:id/test` — health check via adapter.
+- Pool / client por project (implementação interna do adapter).
+- Senha **nunca** em responses; criptografada (`AES-256-GCM` + `ENCRYPTION_KEY`).
 
-### 2. Schema Introspector
-Queries principais em `packages/core/src/introspection/`:
+### 2. Schema Introspector (por adapter)
+
+**SQL (PostgreSQL — referência MVP):**
 
 ```sql
--- Tabelas
 SELECT table_schema, table_name
 FROM information_schema.tables
 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
   AND table_type = 'BASE TABLE';
 
--- Colunas + tipos
 SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
 WHERE table_schema = $1 AND table_name = $2;
-
--- Primary key
-SELECT kcu.column_name
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu ...
-WHERE tc.constraint_type = 'PRIMARY KEY';
 ```
 
-Endpoint: `GET /projects/:id/schema` — retorna tabelas, colunas, PKs e FKs (FKs ajudam na Fase 2 de “entendimento de negócio”).
+**NoSQL (MongoDB — roadmap):**
+- `listCollections()`
+- Sample de N documentos + índices → inferir `FieldMeta[]`
+- `_id` como primary key padrão
 
-### 3. Exposição de tabelas
-- Endpoint: `PUT /projects/:id/expose` — body: `{ tables: ["clientes", "vendas"] }`.
-- Valida que tabelas existem no schema introspectado (whitelist — **proteção contra SQL injection**).
-- Regenera rotas e OpenAPI em memória.
+Endpoint unificado: `GET /projects/:id/schema` → `SchemaSnapshot` (engine-agnostic).
 
-### 4. REST Generator (dinâmico em runtime)
-Para cada tabela exposta `clientes` com PK `id`:
+### 3. Exposição de recursos
+- `PUT /projects/:id/expose` — body: `{ resources: ["clientes", "vendas"] }`.
+- Valida contra o schema introspectado (whitelist).
+- Regenera rotas e OpenAPI.
+
+### 4. REST Generator (dinâmico)
+Para cada recurso exposto `clientes`:
 
 | Método | Rota | Comportamento |
 |--------|------|---------------|
 | GET | `/p/:projectId/clientes` | Lista com paginação (`limit`, `offset`) |
-| GET | `/p/:projectId/clientes/:id` | Busca por PK |
-| POST | `/p/:projectId/clientes` | Insert (colunas não-PK com default/nullable) |
+| GET | `/p/:projectId/clientes/:id` | Busca por PK / `_id` |
+| POST | `/p/:projectId/clientes` | Insert (quando permitido) |
 
 Regras de segurança:
-- Nomes de tabela/coluna validados com regex `^[a-zA-Z_][a-zA-Z0-9_]*$` + whitelist.
-- Queries sempre parametrizadas (`$1`, `$2`); identificadores quotados com `pg-format` ou escape seguro.
-- Sem `DELETE`/`PUT` no MVP (reduz superfície de ataque).
-
-Prefixo `/p/:projectId/` isola projetos e prepara multi-tenant.
+- Nomes validados + whitelist do expose.
+- SQL: queries parametrizadas; NoSQL: filtros tipados / builders seguros (nunca string crua do usuário).
+- Sem `DELETE`/`PUT` no MVP.
 
 ### 5. OpenAPI Generator
-- Endpoint: `GET /p/:projectId/openapi.json`
-- Gera spec a partir de `exposedTables` + metadados de colunas.
-- Opcional: `GET /p/:projectId/docs` com Swagger UI.
+- `GET /p/:projectId/openapi.json` a partir de `exposedResources` + `FieldMeta`.
+- Opcional: Swagger UI.
 
-### 6. Análise de schema (preparação Fase 2 — stub no MVP)
-- Endpoint: `GET /projects/:id/schema/summary` retorna apenas metadados estruturados.
-- **Não chamar LLM na Fase 1** — mas deixar interface `analyzeSchema(schema): Promise<SchemaSummary>` para plugar OpenAI/Anthropic depois com sugestões do tipo “parece sistema de academia”.
+### 6. Análise de schema (stub Fase 2)
+- `GET /projects/:id/schema/summary`
+- Interface `analyzeSchema(snapshot): Promise<SchemaSummary>` para LLM depois.
 
 ---
 
 ## API da plataforma (Fase 1)
 
 **Gestão:**
-- `POST /projects` — criar conexão
+- `POST /projects` — criar conexão (`engine` obrigatório)
 - `GET /projects` — listar
 - `GET /projects/:id` — detalhe (sem senha)
 - `DELETE /projects/:id` — remover
-- `GET /projects/:id/schema` — introspecção completa
-- `PUT /projects/:id/expose` — definir tabelas expostas
+- `GET /projects/:id/schema` — introspecção
+- `PUT /projects/:id/expose` — `{ resources: string[] }`
+- `GET /engines` — lista engines disponíveis e status (`ready` | `planned`)
 
 **Gerada (por projeto):**
-- `GET /p/:projectId/{tabela}`
-- `GET /p/:projectId/{tabela}/:id`
-- `POST /p/:projectId/{tabela}`
+- `GET /p/:projectId/{recurso}`
+- `GET /p/:projectId/{recurso}/:id`
+- `POST /p/:projectId/{recurso}`
 - `GET /p/:projectId/openapi.json`
+
+Exemplo de criação:
+
+```bash
+curl -X POST http://localhost:3000/projects \
+  -H "X-API-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":"academia",
+    "engine":"postgresql",
+    "host":"localhost",
+    "port":5432,
+    "database":"academia",
+    "username":"readonly",
+    "password":"..."
+  }'
+```
 
 ---
 
 ## Segurança mínima no MVP
 
-Incluir desde o início (mesmo que simples):
-
-- API key da plataforma via header `X-API-Key` (env `PLATFORM_API_KEY`) — base para JWT multi-usuário depois.
-- Rate limit: `@fastify/rate-limit` (ex.: 100 req/min por IP).
-- Logs estruturados com `pino` (request id, projectId, tabela, duração).
-- Credenciais do banco cliente nunca em logs.
-
-JWT, RBAC e quotas por plano ficam para quando o SaaS existir.
+- API key `X-API-Key` (`PLATFORM_API_KEY`).
+- Rate limit `@fastify/rate-limit`.
+- Logs `pino` (request id, projectId, engine, resource) — **sem** credenciais.
+- Whitelist de recursos + validação por adapter.
+- Preferir conexões read-only no cliente.
 
 ---
 
-## Roadmap pós-MVP (referência, fora do escopo atual)
+## Roadmap pós-MVP
 
 ```mermaid
 flowchart LR
-    F1[Fase1_API] --> F2[Fase2_MCP_Capabilities]
+    F1[Fase1_API_Adapters] --> F2[Fase2_MCP_Capabilities]
     F2 --> F3[Fase3_Agentes]
     F3 --> SaaS[Billing_MultiTenant]
 ```
 
 | Fase | Entrega | Diferencial |
 |------|---------|-------------|
-| **1 (MVP)** | REST + OpenAPI dinâmicos | Banco vira API em minutos |
-| **2** | MCP Server + ferramentas de negócio via LLM | “Consultar inadimplentes”, não só CRUD |
-| **3** | Agentes especializados (retenção, financeiro) | Valor SaaS real |
-| **SaaS** | Planos Starter/Pro/Agency, billing, multi-tenant | R$49 / R$149 / Agency |
+| **1 (MVP)** | Adapter registry + PostgreSQL + REST/OpenAPI | Qualquer banco *na arquitetura*; PG na prática |
+| **1.1** | MySQL + SQL Server | Cobrir maioria dos ERPs |
+| **1.2** | MongoDB | Primeiro NoSQL |
+| **1.3** | Oracle (+ outros sob demanda) | Enterprise |
+| **2** | MCP + ferramentas de negócio via LLM | Capacidades, não só CRUD |
+| **3** | Agentes especializados | Retenção, financeiro, comercial |
+| **SaaS** | Planos Starter/Pro/Agency | Billing + multi-tenant |
+
+Alinhamento com a landing (form Beta): opções PostgreSQL / SQL Server / MySQL / Oracle / Outro devem mapear para `engine` no `POST /projects`.
 
 ---
 
 ## Ordem de implementação
 
-1. **Bootstrap** — pnpm workspace, TypeScript, ESLint, `.env.example`, README com quickstart.
-2. **Storage** — SQLite + model `Project` + criptografia de senha.
-3. **Connection + Introspection** — conectar, listar tabelas/colunas/PKs.
-4. **Expose tables** — persistir seleção e recarregar metadados.
-5. **REST Generator** — rotas dinâmicas GET list, GET by id, POST.
-6. **OpenAPI** — spec dinâmica + Swagger UI.
-7. **Hardening** — API key, rate limit, validação de identificadores SQL.
-8. **Smoke test** — script com PostgreSQL local (Docker) validando fluxo ponta a ponta.
-
----
-
-## Exemplo de validação manual (critério de pronto)
-
-```bash
-# 1. Criar projeto
-curl -X POST http://localhost:3000/projects \
-  -H "X-API-Key: dev-key" \
-  -d '{"name":"academia","host":"localhost","port":5432,"database":"academia","username":"postgres","password":"..."}'
-
-# 2. Introspectar
-curl http://localhost:3000/projects/{id}/schema
-
-# 3. Expor tabelas
-curl -X PUT http://localhost:3000/projects/{id}/expose \
-  -d '{"tables":["alunos","pagamentos"]}'
-
-# 4. Usar API gerada
-curl http://localhost:3000/p/{id}/alunos?limit=10
-curl http://localhost:3000/p/{id}/openapi.json
-```
+1. **Bootstrap** — workspace, TypeScript, Fastify, `.env.example`, README.
+2. **Storage** — SQLite + `Project` com campo `engine` + crypto.
+3. **Adapter contracts + registry** — `DatabaseAdapter`, `SchemaSnapshot`, `AdapterRegistry`.
+4. **PostgreSQL adapter** — test, introspect, list, getById, insert.
+5. **Adapters** — PostgreSQL + MySQL prontos; stubs: sqlserver, oracle, mongodb.
+6. **Expose + REST + OpenAPI** — genéricos sobre o adapter.
+7. **Hardening** — API key, rate limit, whitelist.
+8. **Smoke test** — Docker Compose PostgreSQL + fluxo ponta a ponta.
+9. **(Pós-MVP)** — implementar próximo adapter pela demanda dos leads do Beta.
 
 ---
 
@@ -286,27 +423,43 @@ curl http://localhost:3000/p/{id}/openapi.json
 
 | Risco | Mitigação |
 |-------|-----------|
-| SQL injection em API dinâmica | Whitelist de tabelas + identificadores validados + queries parametrizadas |
-| Schemas complexos (views, JSONB, arrays) | MVP: tipos simples; documentar limitações; evoluir mapeamento OpenAPI na Fase 2 |
-| Performance em tabelas grandes | Paginação obrigatória; `limit` máximo (ex. 100) |
-| Senhas em repouso | Criptografia + nunca expor em API/logs |
-| CRUD genérico de baixo valor | Fase 1 entrega infraestrutura; Fase 2 muda o produto para “capacidades” |
+| Complexidade multi-engine cedo demais | MVP só PostgreSQL completo; demais = stubs tipados |
+| SQL / NoSQL injection | Whitelist + queries/builders parametrizados por adapter |
+| Importação acidental de dados | Princípio explícito; SQLite nunca guarda linhas de negócio |
+| Schema NoSQL fraco (docs heterogêneos) | Inferência por sample + documentar limitações |
+| Drivers nativos pesados (Oracle) | Adapter opcional / lazy load |
+| Performance em collections grandes | Paginação obrigatória; `limit` máximo |
 
 ---
 
 ## Entregável da Fase 1
 
-Um servidor Fastify executável que, dado host/porta/banco/usuário/senha, introspecta PostgreSQL, permite escolher tabelas e expõe **REST + OpenAPI** dinamicamente — com arquitetura modular pronta para MCP, análise por IA e agentes nas próximas fases.
+Um servidor Fastify com **arquitetura multi-banco (SQL e NoSQL) via adapters**, implementação completa dos adapters **PostgreSQL** e **MySQL**, stubs para SQL Server / Oracle / MongoDB, e exposição dinâmica de **REST + OpenAPI** — sem importar dados do cliente — preparado para MCP e agentes nas fases seguintes.
+
+## Entregável da Fase 2 (MCP)
+
+- Pacote `@synapse/mcp` com tools: `list_exposed_resources`, `describe_resource`, `query_records`, `get_record`, `create_record`
+- Endpoint Streamable HTTP: `POST /p/:projectId/mcp` (+ manifesto `GET /p/:projectId/mcp.json`)
+- Admin exibe URL MCP + snippet Cursor `mcp.json`
+- Tools consultam o banco do cliente **ao vivo** via o mesmo `DatabaseAdapter` (sem importar dados)
+
+## Inteligência de negócio
+
+Ver [`docs/PLAN-BUSINESS-AI.md`](./PLAN-BUSINESS-AI.md) (Fases A–D) e posicionamento em [`docs/POSITIONING.md`](./POSITIONING.md) — conexão é infra; valor = packs/playbooks confirmáveis no MCP.
 
 ---
 
 ## Tarefas de implementação
 
-- [ ] Inicializar monorepo pnpm (apps/api + packages/core + packages/storage), TypeScript strict, Fastify, .env.example e README
-- [ ] Implementar SQLite metadata store, model Project e criptografia de senhas
-- [ ] Connection manager + introspecção information_schema (tabelas, colunas, PKs, FKs)
-- [ ] API de gestão de projetos e endpoint PUT /expose com whitelist de tabelas
-- [ ] Gerador dinâmico REST: GET list, GET by id, POST por tabela exposta
-- [ ] Gerador OpenAPI dinâmico em /p/:projectId/openapi.json + Swagger UI opcional
-- [ ] API key, rate limit, logs pino, validação anti-SQL-injection
-- [ ] Docker Compose PostgreSQL de exemplo + script/collection validando fluxo ponta a ponta
+- [ ] Inicializar monorepo (apps/api + packages/core + packages/storage), TypeScript strict, Fastify, `.env.example` e README
+- [ ] SQLite metadata store + model `Project` com `engine` + criptografia de senhas
+- [ ] Contratos `DatabaseAdapter` / `SchemaSnapshot` + `AdapterRegistry`
+- [x] Adapter PostgreSQL completo (test, introspect, list, getById, insert)
+- [x] Adapter MySQL completo (test, introspect, list, getById, insert)
+- [ ] Stubs tipados: sqlserver, oracle, mongodb
+- [ ] API de projetos + `PUT /expose` com whitelist de recursos
+- [ ] Gerador REST dinâmico sobre o adapter ativo
+- [ ] Gerador OpenAPI + Swagger UI opcional
+- [ ] API key, rate limit, logs pino, validação anti-injection
+- [ ] Docker Compose PostgreSQL + smoke test ponta a ponta
+- [ ] Endpoint `GET /engines` listando engines ready vs planned

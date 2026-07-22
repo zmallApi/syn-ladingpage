@@ -1,0 +1,9 @@
+@import "@synapse/ui/theme.css";
+
+html,
+body,
+#root {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}

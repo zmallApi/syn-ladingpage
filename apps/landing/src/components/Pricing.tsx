@@ -3,34 +3,36 @@ const plans = [
     name: "Starter",
     price: "R$49",
     period: "/mês",
-    text: "Um sistema. Capacidades aprovadas por você.",
+    text: "Cloud. Um sistema. Ideal para começar.",
     features: [
-      "Um sistema conectado",
-      "Capacidades por resultado",
-      "Você aprova o que a IA faz",
+      "Conexão Cloud",
+      "Capacidades que você publica",
+      "MCP para agentes",
     ],
   },
   {
-    name: "Pro",
+    name: "Business",
     price: "R$149",
     period: "/mês",
-    text: "Vários sistemas. Mais profundidade de entendimento.",
+    text: "Edge. Banco nunca exposto. Só saída.",
     features: [
-      "Até 5 sistemas",
-      "Cobrar, reter, vender, atender",
+      "Synapsee Edge (Docker/Compose)",
+      "Cloud nunca entra na sua rede",
+      "Vários sistemas",
       "Suporte prioritário no Beta",
     ],
     highlight: true,
   },
   {
-    name: "Agency",
+    name: "Enterprise",
     price: "Sob consulta",
     period: "",
-    text: "Multi-cliente. Onboarding assistido.",
+    text: "Helm, HA, SSO e auditoria — roadmap.",
     features: [
-      "Portfólio de empresas",
+      "Edge em Kubernetes",
+      "SSO / RBAC (roadmap)",
+      "Auditoria de jobs (roadmap)",
       "Onboarding assistido",
-      "Mesma camada de entendimento",
     ],
   },
 ];
@@ -42,7 +44,7 @@ export function Pricing({ onConnect }: { onConnect: () => void }) {
         <div className="mb-12 text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">Acesso</p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            Beta para quem quer ensinar o negócio à IA
+            Do primeiro sistema ao Edge enterprise
           </h2>
           <p className="mt-3 text-sm text-slate-400">Preços indicativos para early adopters.</p>
         </div>

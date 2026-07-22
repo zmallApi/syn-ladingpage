@@ -1,0 +1,19 @@
+{
+  "name": "@synapse/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.23.1",
+    "pg": "^8.16.0",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.2",
+    "typescript": "^5.8.3"
+  }
+}

@@ -27,17 +27,17 @@ const points = [
   {
     icon: IconLayers,
     title: "Software houses",
-    text: "O ERP do cliente já conhece o negócio. Faça a IA conhecer também — em cada conta.",
+    text: "O sistema do cliente já conhece o negócio. Liberem esse conhecimento para a IA — em cada conta.",
   },
   {
     icon: IconBuilding,
     title: "Empresas",
-    text: "Cobrar, reter, vender, atender — com a IA usando o conhecimento que você já tem.",
+    text: "Cobrar, reter, vender, atender — com agentes usando o que a empresa já sabe.",
   },
   {
     icon: IconCode,
     title: "Times de IA",
-    text: "Pare de explicar o sistema ao modelo. Ensine o negócio uma vez.",
+    text: "Pare de explicar o sistema ao modelo. Publique o negócio uma vez.",
   },
 ];
 
@@ -48,8 +48,11 @@ export function WhoNeedsIt() {
         <div className="mb-12 text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">Para quem</p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            Finalmente, uma forma da IA entender o ERP
+            Liberar o conhecimento preso nos sistemas
           </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400">
+            Empresa → conhecimento → capacidades → agentes. Não é só “banco → especialista”.
+          </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">

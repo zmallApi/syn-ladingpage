@@ -2,11 +2,23 @@
   "name": "iaclient",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev:landing": "npm run dev --workspace=@synapse/landing",
     "build:landing": "npm run build --workspace=@synapse/landing",
-    "preview:landing": "npm run preview --workspace=@synapse/landing"
+    "preview:landing": "npm run preview --workspace=@synapse/landing",
+    "dev:admin": "npm run dev --workspace=@synapse/admin",
+    "build:admin": "npm run build --workspace=@synapse/admin",
+    "preview:admin": "npm run preview --workspace=@synapse/admin",
+    "dev:api": "npm run dev --workspace=@synapse/api",
+    "start:api": "npm run start --workspace=@synapse/api",
+    "build:api": "npm run build --workspace=@synapse/api",
+    "dev:edge": "npm run dev --workspace=@synapse/edge",
+    "start:edge": "npm run start --workspace=@synapse/edge",
+    "build:edge": "npm run build --workspace=@synapse/edge",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
   }
 }
