@@ -86,42 +86,18 @@ body {
 }
 
 @keyframes logo-core-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.75; transform: scale(0.88); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
 }
 
 @keyframes logo-ring-pulse {
-  0%, 100% { opacity: 1; stroke-opacity: 1; }
-  50% { opacity: 0.65; stroke-opacity: 0.65; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 
 @keyframes logo-spokes-pulse {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 0.25; }
-}
-
-.logo-mark .logo-core-dot {
-  transform-origin: 16px 16px;
-  transform-box: fill-box;
-  animation: logo-core-pulse 2.4s ease-in-out infinite;
-}
-
-.logo-mark .logo-core-ring {
-  transform-origin: 16px 16px;
-  transform-box: fill-box;
-  animation: logo-ring-pulse 2.4s ease-in-out infinite;
-}
-
-.logo-mark .logo-spokes {
-  animation: logo-spokes-pulse 2.4s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .logo-mark .logo-core-dot,
-  .logo-mark .logo-core-ring,
-  .logo-mark .logo-spokes {
-    animation: none;
-  }
 }
 
 @keyframes globe-core-pulse {

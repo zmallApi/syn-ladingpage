@@ -4,13 +4,13 @@ import { Hero } from "./components/Hero";
 import { WhoNeedsIt } from "./components/WhoNeedsIt";
 import { HowItWorks } from "./components/HowItWorks";
 import { Deliverables } from "./components/Deliverables";
+import { Trust } from "./components/Trust";
 import { Pricing } from "./components/Pricing";
 import { Footer } from "./components/Footer";
 import { WaitlistModal } from "./components/WaitlistModal";
 
 export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
-
   const openWaitlist = () => setModalOpen(true);
 
   return (
@@ -21,6 +21,7 @@ export default function App() {
         <WhoNeedsIt />
         <HowItWorks />
         <Deliverables />
+        <Trust />
         <Pricing onConnect={openWaitlist} />
       </main>
       <Footer />

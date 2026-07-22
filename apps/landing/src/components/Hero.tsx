@@ -8,28 +8,28 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-8">
-          <div>
+          <div className="min-w-0">
+            <p className="mb-3 text-sm font-semibold tracking-tight text-white sm:text-base">
+              Synapsee <span className="text-cyan">IA</span>
+            </p>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface-card px-3 py-1 text-xs text-slate-400">
               <span className="h-1.5 w-1.5 rounded-full bg-green animate-pulse" />
               Acesso antecipado ao Beta
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
-              <span className="text-gradient">Conecte qualquer sistema</span>
+              <span className="text-white">A IA não entende os sistemas da sua empresa.</span>
               <br />
-              <span className="text-white">à </span>
-              <span className="text-cyan">IA em minutos.</span>
+              <span className="text-gradient">Nós fazemos ela entender.</span>
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              Transforme seu banco de dados em uma interface pronta para agentes de IA. O Synapsee gera
-              automaticamente APIs, documentação e um servidor MCP para que ChatGPT, Claude, Cursor e
-              outros agentes possam acessar seus dados com segurança.
+              Seu ERP já conhece o negócio. O Synapsee transforma esse conhecimento em
+              capacidades que qualquer agente de IA consegue usar.
             </p>
 
-            <p className="mt-4 max-w-lg rounded-xl border border-border/80 bg-surface-card/60 px-4 py-3 text-sm leading-relaxed text-slate-400">
-              <span className="font-medium text-cyan">MCP</span> (Model Context Protocol) é o padrão que
-              permite agentes de IA usarem seu sistema com segurança.
+            <p className="mt-5 max-w-lg border-l-2 border-cyan/50 pl-4 text-base font-medium text-white">
+              A IA nunca faz nada que você não tenha aprovado.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -38,24 +38,20 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
                 onClick={onConnect}
                 className="rounded-xl cyan-gradient px-6 py-3 text-sm font-semibold text-surface shadow-lg shadow-cyan/10 transition hover:brightness-110"
               >
-                Solicitar acesso Beta
+                Solicitar acesso
               </button>
               <a
                 href="#como-funciona"
                 className="text-sm font-medium text-slate-400 transition hover:text-cyan"
               >
-                Ver como funciona →
+                Como funciona →
               </a>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-6 text-xs text-slate-500">
-              <span>PostgreSQL & ERPs</span>
-              <span>·</span>
-              <span>ChatGPT, Claude, Cursor, Windsurf</span>
             </div>
           </div>
 
-          <DemoAnimation />
+          <div className="min-w-0 w-full justify-self-center lg:justify-self-end">
+            <DemoAnimation />
+          </div>
         </div>
       </div>
     </section>

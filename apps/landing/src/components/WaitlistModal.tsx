@@ -99,9 +99,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-cyan">Acesso Beta</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-cyan">Beta</p>
             <h2 id="waitlist-title" className="mt-1 text-lg font-semibold text-white">
-              Solicitar acesso Beta
+              Solicitar acesso
             </h2>
           </div>
           <button
@@ -123,9 +123,10 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white">Solicitação recebida!</h3>
+            <h3 className="text-xl font-semibold text-white">Recebemos seu pedido</h3>
             <p className="mt-2 text-sm text-slate-400">
-              Você está na fila do Beta. Entraremos em contato com seu acesso antecipado.
+              Em breve: conectamos o sistema, o Synapsee entende o negócio, você aprova as
+              capacidades — e a IA passa a trabalhar com o conhecimento da sua empresa.
             </p>
             <button
               type="button"
@@ -138,7 +139,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         ) : (
           <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-5">
             <p className="mb-5 text-sm text-slate-400">
-              Deixe seus dados e receba acesso antecipado ao Beta do Synapsee IA.
+              Queremos que a IA entenda como a sua empresa funciona.
             </p>
 
             <div className="space-y-4">

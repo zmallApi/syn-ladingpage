@@ -8,16 +8,17 @@ export interface WaitlistFormData {
 
 export const DATABASE_OPTIONS = [
   "PostgreSQL",
-  "SQL Server",
   "MySQL",
-  "Oracle",
+  "SQL Server (em breve)",
+  "Oracle (em breve)",
   "Outro",
 ] as const;
 
 export const INTENDED_USE_OPTIONS = [
-  "ChatGPT",
-  "Claude",
   "Cursor",
+  "Claude",
+  "ChatGPT",
+  "Windsurf",
   "Copilot",
   "Agente interno",
   "Ainda estou avaliando",

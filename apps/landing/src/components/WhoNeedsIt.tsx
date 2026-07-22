@@ -23,21 +23,21 @@ function IconCode() {
   );
 }
 
-const audiences = [
+const points = [
   {
     icon: IconLayers,
-    title: "Software Houses",
-    description: "Transforme o ERP dos clientes em ferramentas para IA.",
+    title: "Software houses",
+    text: "O ERP do cliente já conhece o negócio. Faça a IA conhecer também — em cada conta.",
   },
   {
     icon: IconBuilding,
     title: "Empresas",
-    description: "Conecte seus sistemas internos aos agentes.",
+    text: "Cobrar, reter, vender, atender — com a IA usando o conhecimento que você já tem.",
   },
   {
     icon: IconCode,
-    title: "Desenvolvedores IA",
-    description: "Pare de escrever integrações manualmente.",
+    title: "Times de IA",
+    text: "Pare de explicar o sistema ao modelo. Ensine o negócio uma vez.",
   },
 ];
 
@@ -46,23 +46,25 @@ export function WhoNeedsIt() {
     <section id="quem-precisa" className="border-t border-border/60 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-12 text-center">
-          <p className="text-xs font-medium uppercase tracking-widest text-cyan">Público</p>
-          <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">Quem precisa disso?</h2>
+          <p className="text-xs font-medium uppercase tracking-widest text-cyan">Para quem</p>
+          <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
+            Finalmente, uma forma da IA entender o ERP
+          </h2>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {audiences.map((item) => {
-            const Icon = item.icon;
+          {points.map((p) => {
+            const Icon = p.icon;
             return (
               <div
-                key={item.title}
-                className="rounded-2xl border border-border bg-surface-card p-6 card-glow transition"
+                key={p.title}
+                className="rounded-2xl border border-border bg-surface-card p-6 card-glow"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan/20 bg-cyan/5">
                   <Icon />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{item.description}</p>
+                <h3 className="mt-4 text-lg font-semibold text-white">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">{p.text}</p>
               </div>
             );
           })}
