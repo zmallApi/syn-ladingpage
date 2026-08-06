@@ -1,38 +1,37 @@
 const trusts = [
   {
-    title: "Dados no seu ambiente",
-    text: "Nada é importado. O conhecimento é interpretado onde já está.",
+    title: "Edge",
+    text: "Quando precisa, as fontes ficam na sua rede. O Cloud não precisa entrar.",
   },
   {
-    title: "Sem abrir o banco",
-    text: "Com Edge, apenas conexões de saída. O Cloud nunca entra na sua rede.",
+    title: "Dados no cliente",
+    text: "O Synapsee prepara contexto a partir das suas fontes — sem treinar um modelo com o seu negócio.",
   },
   {
-    title: "Você aprova tudo",
-    text: "A IA nunca executa algo que você não tenha publicado.",
+    title: "Só conexões de saída",
+    text: "Com Edge, a conversa começa do seu lado. Nada entra sem você.",
   },
   {
-    title: "Revogue a qualquer momento",
-    text: "Capacidades e tokens podem ser desligados. Você no controle — sempre.",
+    title: "Aprovação humana",
+    text: "A IA só age no que você autorizou. Revogue o acesso quando quiser.",
   },
-];
-
-const extras = [
-  "Sem abrir portas no banco",
-  "Apenas conexões de saída (Edge)",
-  "Trilha de auditoria (roadmap)",
-  "Revogue qualquer capacidade a qualquer momento",
 ];
 
 export function Trust() {
   return (
-    <section className="border-t border-border/60 py-16 sm:py-24">
+    <section id="confianca" className="border-t border-border/60 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-12 text-center">
-          <p className="text-xs font-medium uppercase tracking-widest text-cyan">Confiança</p>
+          <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+            Segurança
+          </p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            A IA continua sob o seu controle
+            A IA nunca faz nada que você não tenha aprovado
           </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-slate-400">
+            Preparar trabalho para agentes exige confiança. O Synapsee foi pensado para
+            isso desde o primeiro dia.
+          </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -48,14 +47,9 @@ export function Trust() {
           ))}
         </div>
 
-        <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-400">
-          {extras.map((e) => (
-            <li key={e} className="flex items-center gap-2">
-              <span className="text-cyan">✓</span>
-              {e}
-            </li>
-          ))}
-        </ul>
+        <p className="mx-auto mt-10 max-w-xl text-center text-sm font-medium text-slate-300">
+          Modelos são motor. O conhecimento — e o contexto — ficam no Synapsee.
+        </p>
       </div>
     </section>
   );

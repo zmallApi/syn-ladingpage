@@ -13,18 +13,18 @@ export function Header({ onConnect }: { onConnect: () => void }) {
           </span>
         </a>
 
-        <nav className="hidden items-center gap-8 text-sm text-slate-500 md:flex">
+        <nav className="hidden items-center gap-6 text-sm text-slate-500 lg:flex">
+          <a href="#diferenca" className="transition hover:text-white">
+            A diferença
+          </a>
           <a href="#como-funciona" className="transition hover:text-white">
             Como funciona
           </a>
-          <a href="#edge" className="transition hover:text-white">
-            Edge
+          <a href="#missoes" className="transition hover:text-white">
+            Missões
           </a>
-          <a href="#por-que-synapsee" className="transition hover:text-white">
-            Por que Synapsee
-          </a>
-          <a href="#entregaveis" className="transition hover:text-white">
-            Capacidades
+          <a href="#fontes" className="transition hover:text-white">
+            Fontes
           </a>
           <a href="#planos" className="transition hover:text-white">
             Acesso

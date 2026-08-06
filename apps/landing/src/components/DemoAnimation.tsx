@@ -1,21 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-type Stage = "connect" | "understand" | "specialize" | "publish";
+type Stage = "problem" | "layer" | "mission" | "execute";
 
 const STAGE_MS: Record<Stage, number> = {
-  connect: 5200,
-  understand: 7200,
-  specialize: 7500,
-  publish: 7500,
+  problem: 5500,
+  layer: 6500,
+  mission: 7000,
+  execute: 7500,
 };
 
-const STAGES: Stage[] = ["connect", "understand", "specialize", "publish"];
+const STAGES: Stage[] = ["problem", "layer", "mission", "execute"];
 
-const CAPABILITIES = [
-  "Encontrar inadimplentes",
-  "Calcular dias de atraso",
-  "Priorizar cobranças",
-  "Quem pode cancelar",
+const ASKS = [
+  "Quero cobrar inadimplentes",
+  "Quero implementar esta Story",
+  "Quero entender este incidente",
+  "Quero descobrir quem pode cancelar",
 ];
 
 export function DemoAnimation() {
@@ -36,13 +36,13 @@ export function DemoAnimation() {
   useEffect(() => {
     setPhase(0);
     const delays =
-      stage === "connect"
-        ? [800, 2200, 4000]
-        : stage === "understand"
-          ? [700, 2200, 4000, 5800]
-          : stage === "specialize"
-            ? [700, 1800, 3000, 4200, 5600]
-            : [900, 2200, 3800, 5200];
+      stage === "problem"
+        ? [700, 2000, 3800]
+        : stage === "layer"
+          ? [700, 2200, 4000, 5500]
+          : stage === "mission"
+            ? [600, 1600, 2800, 4000, 5400]
+            : [800, 2000, 3600, 5200];
     delays.forEach((ms, i) => {
       window.setTimeout(() => setPhase(i + 1), ms);
     });
@@ -67,79 +67,82 @@ export function DemoAnimation() {
         </div>
 
         <div className="relative min-h-[340px] p-5">
-          <Stage visible={stage === "connect"}>
-            <Label>Conectar</Label>
+          <Stage visible={stage === "problem"}>
+            <Label>O problema</Label>
             <p
               className={`mt-4 text-lg font-medium text-white transition duration-700 ${
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Sistema empresarial conectado.
+              Sua empresa já sabe como funciona.
             </p>
             <p
-              className={`mt-2 text-sm text-slate-500 transition duration-700 ${
+              className={`mt-3 text-sm text-slate-400 transition duration-700 ${
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Cloud ou Edge — dados continuam onde estão.
+              Esse conhecimento está preso em sistemas.
             </p>
             <p
               className={`mt-8 text-sm text-cyan transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Pronto para entender o negócio.
+              O agente não conhece nada disso.
             </p>
           </Stage>
 
-          <Stage visible={stage === "understand"}>
-            <Label>Entender</Label>
+          <Stage visible={stage === "layer"}>
+            <Label>A camada</Label>
             <p
               className={`mt-4 text-lg font-medium text-white transition duration-700 ${
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Conhecimento da empresa interpretado.
+              O Synapsee fica entre os dois.
             </p>
             <div
               className={`mt-6 space-y-2 text-sm transition duration-700 ${
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              <p className="text-slate-500">Empresa → conhecimento</p>
-              <p className="text-cyan">→ papéis, processos, relações</p>
+              <p className="text-slate-500">Sistemas da empresa</p>
+              <p className="text-cyan">→ contexto executável</p>
+              <p className="text-slate-500">→ agente de IA</p>
             </div>
             <p
-              className={`mt-4 text-sm text-slate-400 transition duration-700 ${
+              className={`mt-6 text-sm text-slate-300 transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Não é renomear tabelas. É liberar o que a empresa já sabe.
+              Context Operating System.
             </p>
             <p
-              className={`mt-6 text-sm text-slate-300 transition duration-700 ${
+              className={`mt-3 text-sm text-slate-500 transition duration-700 ${
                 phase >= 4 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Camada semântica: clientes, cobranças, vendas — não só tabelas.
+              Modelos são motor. O conhecimento fica aqui.
             </p>
           </Stage>
 
-          <Stage visible={stage === "specialize"}>
-            <Label>Especializar</Label>
+          <Stage visible={stage === "mission"}>
+            <Label>Missão</Label>
             <p
               className={`mt-3 text-sm text-slate-400 transition duration-700 ${
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Capacidades concretas sugeridas:
+              Você começa pelo objetivo:
             </p>
             <ul className="mt-4 space-y-2.5">
-              {CAPABILITIES.map((c, i) => (
+              {ASKS.map((c, i) => (
                 <li
                   key={c}
                   className={`flex items-center gap-2 text-sm text-slate-200 transition duration-700 ${
-                    phase > i + 1 ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-1"
+                    phase > i + 1
+                      ? "opacity-100 translate-x-0"
+                      : "opacity-0 -translate-x-1"
                   }`}
                 >
                   <span className="text-cyan">✓</span>
@@ -152,41 +155,39 @@ export function DemoAnimation() {
                 phase >= 5 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Publicar para os agentes?
+              O Synapsee prepara o trabalho.
             </p>
           </Stage>
 
-          <Stage visible={stage === "publish"}>
-            <Label>Publicar → Usar</Label>
+          <Stage visible={stage === "execute"}>
+            <Label>Execução</Label>
             <p
               className={`mt-4 text-lg font-medium text-white transition duration-700 ${
                 phase >= 1 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Capacidades publicadas no MCP.
+              Quero implementar esta Story.
             </p>
-            <ul
-              className={`mt-4 space-y-2 text-sm transition duration-700 ${
+            <p
+              className={`mt-4 text-sm text-slate-400 transition duration-700 ${
                 phase >= 2 ? "opacity-100" : "opacity-0"
               }`}
             >
-              <li className="font-mono text-cyan">cap_list_at_risk</li>
-              <li className="font-mono text-cyan">cap_party_360</li>
-              <li className="font-mono text-cyan">cap_overdue_ledger</li>
-            </ul>
+              Contexto preparado — entregue ao agente.
+            </p>
             <p
-              className={`mt-6 text-sm text-slate-400 transition duration-700 ${
+              className={`mt-6 text-sm text-cyan transition duration-700 ${
                 phase >= 3 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Cursor, Claude e ChatGPT passam a usar o conhecimento da empresa.
+              Cursor executa. O Synapsee já preparou.
             </p>
             <p
               className={`mt-4 text-sm font-medium text-white transition duration-700 ${
                 phase >= 4 ? "opacity-100" : "opacity-0"
               }`}
             >
-              Você aprovou. A IA executa.
+              O agente não precisou conhecer a sua empresa.
             </p>
           </Stage>
         </div>

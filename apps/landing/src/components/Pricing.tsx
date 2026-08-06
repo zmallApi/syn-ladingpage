@@ -3,22 +3,22 @@ const plans = [
     name: "Starter",
     price: "R$49",
     period: "/mês",
-    text: "Cloud. Um sistema. Ideal para começar.",
+    text: "Para começar a preparar contexto para os agentes.",
     features: [
-      "Conexão Cloud",
-      "Capacidades que você publica",
-      "MCP para agentes",
+      "Um sistema conectado",
+      "Missões e trabalho preparado",
+      "Uso com seus agentes",
     ],
   },
   {
     name: "Business",
     price: "R$149",
     period: "/mês",
-    text: "Edge. Banco nunca exposto. Só saída.",
+    text: "Dados na sua rede. Só conexões de saída.",
     features: [
-      "Synapsee Edge (Docker/Compose)",
-      "Cloud nunca entra na sua rede",
+      "Edge na sua infraestrutura",
       "Vários sistemas",
+      "Cloud nunca entra na sua rede",
       "Suporte prioritário no Beta",
     ],
     highlight: true,
@@ -27,11 +27,11 @@ const plans = [
     name: "Enterprise",
     price: "Sob consulta",
     period: "",
-    text: "Helm, HA, SSO e auditoria — roadmap.",
+    text: "Escala, conformidade e onboarding assistido.",
     features: [
-      "Edge em Kubernetes",
-      "SSO / RBAC (roadmap)",
-      "Auditoria de jobs (roadmap)",
+      "Infraestrutura dedicada",
+      "Controles avançados (roadmap)",
+      "Auditoria (roadmap)",
       "Onboarding assistido",
     ],
   },
@@ -42,11 +42,15 @@ export function Pricing({ onConnect }: { onConnect: () => void }) {
     <section id="planos" className="border-t border-border/60 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-12 text-center">
-          <p className="text-xs font-medium uppercase tracking-widest text-cyan">Acesso</p>
+          <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+            Acesso
+          </p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            Do primeiro sistema ao Edge enterprise
+            Do primeiro sistema à operação segura
           </h2>
-          <p className="mt-3 text-sm text-slate-400">Preços indicativos para early adopters.</p>
+          <p className="mt-3 text-sm text-slate-400">
+            Preços indicativos para early adopters.
+          </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -59,37 +63,38 @@ export function Pricing({ onConnect }: { onConnect: () => void }) {
                   : "border-border bg-surface-card"
               }`}
             >
-              {p.highlight && (
-                <span className="mb-3 inline-block rounded-full bg-cyan/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan">
-                  Popular
+              <p className="text-sm font-medium text-slate-400">{p.name}</p>
+              <p className="mt-3 text-3xl font-bold text-white">
+                {p.price}
+                <span className="text-base font-normal text-slate-500">
+                  {p.period}
                 </span>
-              )}
-              <h3 className="text-lg font-semibold text-white">{p.name}</h3>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-white">{p.price}</span>
-                {p.period && <span className="text-sm text-slate-500">{p.period}</span>}
-              </div>
+              </p>
               <p className="mt-2 text-sm text-slate-400">{p.text}</p>
-              <ul className="mt-5 space-y-2">
+              <ul className="mt-6 space-y-2">
                 {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
+                  <li
+                    key={f}
+                    className="flex items-start gap-2 text-sm text-slate-300"
+                  >
                     <span className="text-cyan">✓</span>
                     {f}
                   </li>
                 ))}
               </ul>
+              <button
+                type="button"
+                onClick={onConnect}
+                className={`mt-8 w-full rounded-xl py-2.5 text-sm font-semibold transition ${
+                  p.highlight
+                    ? "cyan-gradient text-surface hover:brightness-110"
+                    : "border border-border text-slate-200 hover:border-cyan/40 hover:text-cyan"
+                }`}
+              >
+                Solicitar acesso
+              </button>
             </div>
           ))}
-        </div>
-
-        <div className="mt-10 text-center">
-          <button
-            type="button"
-            onClick={onConnect}
-            className="rounded-xl cyan-gradient px-8 py-3 text-sm font-semibold text-surface transition hover:brightness-110"
-          >
-            Solicitar acesso
-          </button>
         </div>
       </div>
     </section>

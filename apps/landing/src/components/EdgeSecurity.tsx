@@ -1,22 +1,21 @@
-export function Architecture() {
+export function EdgeSecurity() {
   return (
     <section id="edge" className="border-t border-border/60 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-12 text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">
-            Conexão segura
+            Conexão
           </p>
           <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
-            Conecte do jeito que faz sentido para sua empresa
+            Seus dados não precisam sair do lugar
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400">
-            Dados continuam onde estão. Com Edge, o banco nunca precisa ser exposto à
-            internet.
+            Comece em minutos na nuvem, ou mantenha as fontes na sua rede. Em ambos os
+            casos, o Synapsee prepara contexto — sem abrir o que não deve.
           </p>
         </div>
 
-        {/* Architecture diagram */}
-        <div className="mx-auto mb-12 max-w-lg rounded-2xl border border-border bg-surface-card p-6 sm:p-8 card-glow">
+        <div className="mx-auto mb-10 max-w-lg rounded-2xl border border-border bg-surface-card p-6 sm:p-8 card-glow">
           <div className="flex flex-wrap items-center justify-center gap-2 text-center">
             {["Cursor", "Claude", "ChatGPT"].map((a) => (
               <span
@@ -29,24 +28,20 @@ export function Architecture() {
           </div>
           <p className="my-3 text-center font-mono text-lg text-slate-600">↓</p>
           <p className="rounded-xl border border-cyan/30 bg-cyan/5 py-3 text-center text-sm font-semibold text-cyan">
-            Synapsee Cloud
+            Synapsee
           </p>
           <p className="my-2 text-center text-[11px] uppercase tracking-widest text-slate-500">
-            HTTPS de saída · só o Edge inicia
-          </p>
-          <p className="my-3 text-center font-mono text-lg text-slate-600">↑</p>
-          <p className="rounded-xl border border-border bg-surface py-3 text-center text-sm font-semibold text-white">
-            Synapsee Edge
+            Com Edge: só a sua rede inicia a conversa
           </p>
           <p className="my-3 text-center font-mono text-lg text-slate-600">↑</p>
           <p className="rounded-xl border border-border bg-surface py-3 text-center text-sm font-medium text-slate-400">
-            Sistema / banco da empresa
+            Sistemas da empresa
           </p>
         </div>
 
-        <p className="mx-auto mb-10 max-w-3xl text-center text-lg font-semibold leading-snug text-white sm:text-xl">
-          O Synapsee Cloud nunca entra na rede da empresa. O Synapsee Edge inicia toda a
-          comunicação.
+        <p className="mx-auto mb-10 max-w-2xl text-center text-base font-semibold leading-snug text-white sm:text-lg">
+          O Cloud nunca precisa entrar na sua rede. Quando usa Edge, toda comunicação
+          começa do seu lado.
         </p>
 
         <div className="overflow-x-auto">
@@ -54,25 +49,25 @@ export function Architecture() {
             <thead>
               <tr className="border-b border-border">
                 <th className="px-3 py-3 font-medium text-slate-500" />
-                <th className="px-3 py-3 font-semibold text-white">Cloud</th>
-                <th className="px-3 py-3 font-semibold text-cyan">Edge</th>
+                <th className="px-3 py-3 font-semibold text-white">Para começar</th>
+                <th className="px-3 py-3 font-semibold text-cyan">Para empresas</th>
               </tr>
             </thead>
             <tbody className="text-slate-400">
               <tr className="border-b border-border/60">
                 <td className="px-3 py-3 text-slate-500">Ideal para</td>
-                <td className="px-3 py-3">Começar rápido</td>
-                <td className="px-3 py-3 text-slate-200">Empresas e segurança</td>
+                <td className="px-3 py-3">Validar rápido</td>
+                <td className="px-3 py-3 text-slate-200">Segurança e conformidade</td>
               </tr>
               <tr className="border-b border-border/60">
                 <td className="px-3 py-3 text-slate-500">Setup</td>
                 <td className="px-3 py-3">Minutos</td>
-                <td className="px-3 py-3 text-slate-200">Docker / Kubernetes</td>
+                <td className="px-3 py-3 text-slate-200">Na sua infraestrutura</td>
               </tr>
               <tr className="border-b border-border/60">
-                <td className="px-3 py-3 text-slate-500">Banco</td>
-                <td className="px-3 py-3">Acessível pelo Cloud</td>
-                <td className="px-3 py-3 text-slate-200">Nunca exposto</td>
+                <td className="px-3 py-3 text-slate-500">Dados</td>
+                <td className="px-3 py-3">Fonte acessível</td>
+                <td className="px-3 py-3 text-slate-200">Permanecem no cliente</td>
               </tr>
               <tr>
                 <td className="px-3 py-3 text-slate-500">Rede</td>

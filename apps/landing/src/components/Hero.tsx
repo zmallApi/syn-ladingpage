@@ -14,33 +14,37 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
             </p>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface-card px-3 py-1 text-xs text-slate-400">
               <span className="h-1.5 w-1.5 rounded-full bg-green animate-pulse" />
-              Acesso antecipado ao Beta
+              Context Operating System · Beta
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
-              <span className="text-white">Seu sistema já entende o seu negócio.</span>
+              <span className="text-white">Toda empresa já sabe como funciona.</span>
               <br />
-              <span className="text-gradient">O Synapsee faz a IA entender também.</span>
+              <span className="text-gradient">Esse conhecimento está preso.</span>
             </h1>
 
-            <p className="mt-5 max-w-lg text-lg font-medium leading-snug text-white">
-              O Synapsee não conecta tabelas à IA. Ele conecta o conhecimento da empresa.
+            <p className="mt-6 max-w-lg text-base leading-relaxed text-slate-400">
+              Em ERP, CRM, GitHub, ClickUp, Confluence, bancos e sistemas internos. Os
+              modelos sabem conversar — eles{" "}
+              <span className="text-slate-300">não conhecem a sua empresa</span>.
+            </p>
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-300">
+              O Synapsee libera esse conhecimento para agentes: transforma o que a
+              empresa já sabe em{" "}
+              <span className="text-white">contexto executável</span>. O agente
+              executa. O Synapsee prepara.
             </p>
 
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-400">
-              Transforme o conhecimento preso no ERP, CRM e outros sistemas em
-              capacidades que agentes de IA conseguem utilizar.
-            </p>
-
-            <ul className="mt-5 space-y-1.5 text-sm text-slate-300">
+            <ul className="mt-6 space-y-1.5 text-sm text-slate-300">
               <li className="flex items-center gap-2">
-                <span className="text-cyan">✓</span> Sem mover dados.
+                <span className="text-cyan">✓</span> O Cursor não precisa conhecer sua
+                empresa.
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-cyan">✓</span> Sem expor o banco.
+                <span className="text-cyan">✓</span> O Synapsee prepara tudo antes.
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-cyan">✓</span> Sob o seu controle.
+                <span className="text-cyan">✓</span> Você aprova. A IA executa.
               </li>
             </ul>
 
@@ -53,10 +57,10 @@ export function Hero({ onConnect }: { onConnect: () => void }) {
                 Solicitar acesso
               </button>
               <a
-                href="#como-funciona"
+                href="#diferenca"
                 className="text-sm font-medium text-slate-400 transition hover:text-cyan"
               >
-                Como funciona →
+                Ver a diferença →
               </a>
             </div>
           </div>
