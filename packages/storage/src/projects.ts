@@ -122,6 +122,26 @@ export interface CreatedEdgeToken {
   createdAt: string;
 }
 
+export interface ProjectMcpKeyRecord {
+  id: string;
+  projectId: string;
+  name: string;
+  tokenPrefix: string;
+  createdByUserId: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface CreatedProjectMcpKey {
+  id: string;
+  projectId: string;
+  name: string;
+  token: string;
+  tokenPrefix: string;
+  createdAt: string;
+}
+
 export interface PublicLlmConfig {
   provider: string;
   model?: string;
@@ -163,6 +183,10 @@ function hashToken(token: string): string {
 
 function generateEdgeToken(): string {
   return `syn_edge_${randomBytes(24).toString("base64url")}`;
+}
+
+function generateMcpDevKey(): string {
+  return `syn_mcp_${randomBytes(24).toString("base64url")}`;
 }
 
 function parseJsonArray(raw: string | null | undefined): string[] {
@@ -322,6 +346,23 @@ export class ProjectStore {
         last_used_at TEXT,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
+    `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS project_mcp_keys (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        token_prefix TEXT NOT NULL,
+        created_by_user_id TEXT,
+        created_at TEXT NOT NULL,
+        revoked_at TEXT,
+        last_used_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_project_mcp_keys_project
+        ON project_mcp_keys(project_id, created_at DESC);
     `);
 
     migrateProductEvents(this.db);
@@ -618,6 +659,116 @@ export class ProjectStore {
     return { projectId: row.project_id, tokenId: row.id };
   }
 
+  createMcpKey(
+    projectId: string,
+    name: string,
+    createdByUserId?: string | null,
+  ): CreatedProjectMcpKey | undefined {
+    const project = this.get(projectId);
+    if (!project) return undefined;
+
+    const id = randomUUID();
+    const token = generateMcpDevKey();
+    const createdAt = new Date().toISOString();
+    const tokenPrefix = token.slice(0, 16);
+    const label = name.trim() || "Developer";
+
+    this.db
+      .prepare(
+        `INSERT INTO project_mcp_keys (
+          id, project_id, name, token_hash, token_prefix,
+          created_by_user_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        projectId,
+        label,
+        hashToken(token),
+        tokenPrefix,
+        createdByUserId ?? null,
+        createdAt,
+      );
+
+    return {
+      id,
+      projectId,
+      name: label,
+      token,
+      tokenPrefix,
+      createdAt,
+    };
+  }
+
+  listMcpKeys(projectId: string): ProjectMcpKeyRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, project_id, name, token_prefix, created_by_user_id,
+                created_at, revoked_at, last_used_at
+         FROM project_mcp_keys
+         WHERE project_id = ?
+         ORDER BY created_at DESC`,
+      )
+      .all(projectId) as Array<Record<string, unknown>>;
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      projectId: String(row.project_id),
+      name: String(row.name),
+      tokenPrefix: String(row.token_prefix),
+      createdByUserId:
+        row.created_by_user_id == null ? null : String(row.created_by_user_id),
+      createdAt: String(row.created_at),
+      revokedAt: row.revoked_at == null ? null : String(row.revoked_at),
+      lastUsedAt: row.last_used_at == null ? null : String(row.last_used_at),
+    }));
+  }
+
+  revokeMcpKey(projectId: string, keyId: string): boolean {
+    const now = new Date().toISOString();
+    const info = this.db
+      .prepare(
+        `UPDATE project_mcp_keys SET revoked_at = ?
+         WHERE id = ? AND project_id = ? AND revoked_at IS NULL`,
+      )
+      .run(now, keyId, projectId);
+    return info.changes > 0;
+  }
+
+  /**
+   * Resolve active MCP developer key.
+   * Returns tenantId for auth context + projectId for path scoping.
+   */
+  resolveMcpKey(token: string): {
+    keyId: string;
+    projectId: string;
+    tenantId: string;
+  } | undefined {
+    if (!token.startsWith("syn_mcp_")) return undefined;
+    const row = this.db
+      .prepare(
+        `SELECT k.id, k.project_id, p.tenant_id
+         FROM project_mcp_keys k
+         JOIN projects p ON p.id = k.project_id
+         WHERE k.token_hash = ? AND k.revoked_at IS NULL`,
+      )
+      .get(hashToken(token)) as
+      | { id: string; project_id: string; tenant_id: string }
+      | undefined;
+    if (!row) return undefined;
+
+    const now = new Date().toISOString();
+    this.db
+      .prepare(`UPDATE project_mcp_keys SET last_used_at = ? WHERE id = ?`)
+      .run(now, row.id);
+
+    return {
+      keyId: row.id,
+      projectId: row.project_id,
+      tenantId: String(row.tenant_id ?? LEGACY_TENANT_ID),
+    };
+  }
+
   setEdgePresence(
     projectId: string,
     data: {
@@ -735,6 +886,7 @@ export class ProjectStore {
 
   delete(id: string): boolean {
     this.db.prepare(`DELETE FROM edge_tokens WHERE project_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM project_mcp_keys WHERE project_id = ?`).run(id);
     const info = this.db.prepare(`DELETE FROM projects WHERE id = ?`).run(id);
     return info.changes > 0;
   }

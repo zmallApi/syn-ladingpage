@@ -25,12 +25,15 @@ export function McpConnectPanel({
   clients,
   claudeDesktopStdio,
 }: Props) {
+  /** Prefer real syn_mcp_ key; otherwise keep placeholder for Admin to mint below. */
+  const keyForSnippet =
+    apiKey && apiKey.startsWith("syn_mcp_") ? apiKey : "<MCP_DEV_KEY>";
   const snippets = clients?.length
     ? clients.map((c) => ({
         ...c,
-        config: injectApiKey(c.config, apiKey),
+        config: injectApiKey(c.config, keyForSnippet),
       }))
-    : buildLocalSnippets(serverId, url, apiKey);
+    : buildLocalSnippets(serverId, url, keyForSnippet);
 
   const [tab, setTab] = useState(snippets[0]?.id ?? "cursor");
   const [copied, setCopied] = useState<"url" | "config" | "stdio" | null>(null);
@@ -56,6 +59,11 @@ export function McpConnectPanel({
           <h2 className="mt-1 text-sm font-semibold text-white">
             Conectar agentes (Streamable HTTP)
           </h2>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Use uma chave <code className="text-slate-400">syn_mcp_</code> por
+            desenvolvedor (painel abaixo). Não cole a chave de tenant{" "}
+            <code className="text-slate-400">syn_tk_</code>.
+          </p>
         </div>
       </div>
 
@@ -152,6 +160,7 @@ export function McpConnectPanel({
 function injectApiKey(config: unknown, apiKey: string): Record<string, unknown> {
   const raw = JSON.stringify(config ?? {});
   const withKey = raw
+    .replaceAll("<MCP_DEV_KEY>", apiKey)
     .replaceAll("<TENANT_API_KEY>", apiKey)
     .replaceAll("<PLATFORM_API_KEY>", apiKey);
   try {

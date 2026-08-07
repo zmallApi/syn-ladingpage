@@ -87,6 +87,7 @@ async function main() {
       const auth = req.auth;
       if (auth?.type === "user") return `user:${auth.userId}`;
       if (auth?.type === "tenant_key") return `tenant:${auth.tenantId}`;
+      if (auth?.type === "mcp_key") return `mcp:${auth.keyId}`;
       if (auth?.type === "platform") return "platform";
       const bearer = req.headers.authorization;
       if (typeof bearer === "string" && bearer.startsWith("Bearer ")) {

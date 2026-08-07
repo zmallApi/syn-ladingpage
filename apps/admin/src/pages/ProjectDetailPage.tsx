@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, getApiKey } from "../lib/api";
+import { api } from "../lib/api";
 import type { McpManifest, Project, SchemaSnapshot } from "../lib/types";
 import { StatusBadge } from "../components/StatusBadge";
 import { ApiPlayground } from "../components/ApiPlayground";
 import { CapabilitiesPanel } from "../components/CapabilitiesPanel";
 import { McpConnectPanel } from "../components/McpConnectPanel";
+import { McpDevKeysPanel } from "../components/McpDevKeysPanel";
 import { EdgeInstallPanel } from "../components/EdgeInstallPanel";
 import { EngineeringKnowledgePanel } from "../components/EngineeringKnowledgePanel";
 import { LlmConfigPanel } from "../components/LlmConfigPanel";
@@ -96,6 +97,7 @@ export function ProjectDetailPage() {
   const [generatingToken, setGeneratingToken] = useState(false);
   const [engTab, setEngTab] = useState<EngTab>("missions");
   const [bizTab, setBizTab] = useState<BizTab>("missions");
+  const [mcpDevKey, setMcpDevKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -293,27 +295,33 @@ export function ProjectDetailPage() {
           )}
 
           {engTab === "agent" && (
-            <div className="mb-6 rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
-              <div className="mb-3">
-                <p className="text-xs font-medium uppercase tracking-widest text-cyan">
-                  Agente
-                </p>
-                <h2 className="mt-1 text-sm font-semibold text-white">
-                  Conectar Cursor / Claude / ChatGPT
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Engineering não usa tabelas de ERP. O agente chama{" "}
-                  <code className="text-slate-400">run_mission</code>{" "}
-                  (Implementar Story) ou as tools Story OS (Understand → Execute)
-                  e recebe o Mission Package. Contexto vem da Knowledge Layer.
-                </p>
+            <div className="mb-6 space-y-4">
+              <div className="rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
+                <div className="mb-3">
+                  <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+                    Agente
+                  </p>
+                  <h2 className="mt-1 text-sm font-semibold text-white">
+                    Conectar Cursor / Claude / ChatGPT
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    O agente chama{" "}
+                    <code className="text-slate-400">run_mission</code>{" "}
+                    (Implementar Story) ou as tools Story OS (Understand →
+                    Execute) e recebe o Mission Package.
+                  </p>
+                </div>
+                <McpConnectPanel
+                  url={mcpManifest?.url ?? api.mcpUrl(project.id)}
+                  apiKey={mcpDevKey ?? "<MCP_DEV_KEY>"}
+                  serverId={`synapsee-${project.id.slice(0, 8)}`}
+                  clients={mcpManifest?.clients}
+                  claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
+                />
               </div>
-              <McpConnectPanel
-                url={mcpManifest?.url ?? api.mcpUrl(project.id)}
-                apiKey={getApiKey() ?? "dev-key"}
-                serverId={`synapsee-${project.id.slice(0, 8)}`}
-                clients={mcpManifest?.clients}
-                claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
+              <McpDevKeysPanel
+                projectId={project.id}
+                onActiveKey={setMcpDevKey}
               />
             </div>
           )}
@@ -386,33 +394,41 @@ export function ProjectDetailPage() {
           )}
 
           {bizTab === "agent" && (
-            <div className="mb-6 rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
-              <div className="mb-3">
-                <p className="text-xs font-medium uppercase tracking-widest text-cyan">
-                  Agente
-                </p>
-                <h2 className="mt-1 text-sm font-semibold text-white">
-                  Conectar Cursor / Claude / ChatGPT
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Ative capabilities e use{" "}
-                  <code className="text-slate-400">run_mission</code> (ex.:
-                  cobrar inadimplentes) para o Mission Package.
-                </p>
+            <div className="mb-6 space-y-4">
+              <div className="rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
+                <div className="mb-3">
+                  <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+                    Agente
+                  </p>
+                  <h2 className="mt-1 text-sm font-semibold text-white">
+                    Conectar Cursor / Claude / ChatGPT
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Ative capabilities e use{" "}
+                    <code className="text-slate-400">run_mission</code> (ex.:
+                    cobrar inadimplentes) para o Mission Package.
+                  </p>
+                </div>
+                {project.exposedResources.length > 0 ? (
+                  <McpConnectPanel
+                    url={mcpManifest?.url ?? api.mcpUrl(project.id)}
+                    apiKey={mcpDevKey ?? "<MCP_DEV_KEY>"}
+                    serverId={`synapsee-${project.id.slice(0, 8)}`}
+                    clients={mcpManifest?.clients}
+                    claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
+                  />
+                ) : (
+                  <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-slate-500">
+                    Exponha recursos no wizard e ative capabilities antes de
+                    conectar o MCP.
+                  </p>
+                )}
               </div>
-              {project.exposedResources.length > 0 ? (
-                <McpConnectPanel
-                  url={mcpManifest?.url ?? api.mcpUrl(project.id)}
-                  apiKey={getApiKey() ?? "dev-key"}
-                  serverId={`synapsee-${project.id.slice(0, 8)}`}
-                  clients={mcpManifest?.clients}
-                  claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
+              {project.exposedResources.length > 0 && (
+                <McpDevKeysPanel
+                  projectId={project.id}
+                  onActiveKey={setMcpDevKey}
                 />
-              ) : (
-                <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-slate-500">
-                  Exponha recursos no wizard e ative capabilities antes de
-                  conectar o MCP.
-                </p>
               )}
             </div>
           )}

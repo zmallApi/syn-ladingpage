@@ -10,7 +10,14 @@ export type AuthContext =
       role: MembershipRole;
       email: string;
     }
-  | { type: "tenant_key"; tenantId: string; keyId: string };
+  | { type: "tenant_key"; tenantId: string; keyId: string }
+  /** Project-scoped MCP developer key — no tenant manage rights. */
+  | {
+      type: "mcp_key";
+      tenantId: string;
+      projectId: string;
+      keyId: string;
+    };
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -26,6 +33,7 @@ export function tenantIdOf(auth: AuthContext): string | null {
 export function canManageTenant(auth: AuthContext): boolean {
   if (auth.type === "platform") return true;
   if (auth.type === "tenant_key") return true;
+  if (auth.type === "mcp_key") return false;
   return auth.role === "owner" || auth.role === "admin";
 }
 
@@ -52,6 +60,18 @@ export function loadAccessibleProject(
   }
   if (auth.type === "platform") {
     const project = store.get(projectId);
+    if (!project) {
+      reply.code(404).send({ error: "Projeto não encontrado" });
+      return null;
+    }
+    return project;
+  }
+  if (auth.type === "mcp_key") {
+    if (auth.projectId !== projectId) {
+      reply.code(404).send({ error: "Projeto não encontrado" });
+      return null;
+    }
+    const project = store.getInTenant(projectId, auth.tenantId);
     if (!project) {
       reply.code(404).send({ error: "Projeto não encontrado" });
       return null;

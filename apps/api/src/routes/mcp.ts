@@ -315,7 +315,7 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
       );
       const serverId = `synapsee-${record.id.slice(0, 8)}`;
       const url = `${base}/p/${record.id}/mcp`;
-      const apiKey = "<TENANT_API_KEY>";
+      const apiKey = "<MCP_DEV_KEY>";
       const clients = buildMcpClientSnippets({ serverId, url, apiKey });
       const cursorSnippet = clients.find((c) => c.id === "cursor");
 
@@ -329,6 +329,8 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
         headers: {
           "X-API-Key": apiKey,
         },
+        authHint:
+          "Use uma chave syn_mcp_ por desenvolvedor (gerada no Admin). Não compartilhe syn_tk_ do tenant.",
         tools: [...crudTools, ...capTools],
         activeCapabilities: publicProject.activeCapabilities,
         vertical: publicProject.vertical,

@@ -79,6 +79,24 @@ const plugin: FastifyPluginAsync<{
       return;
     }
 
+    if (key.startsWith("syn_mcp_")) {
+      const resolved = opts.store.resolveMcpKey(key);
+      if (!resolved) {
+        return reply.code(401).send({ error: "API key inválida ou revogada" });
+      }
+      const tenant = opts.store.tenants.getTenant(resolved.tenantId);
+      if (!tenant || tenant.status !== "active") {
+        return reply.code(401).send({ error: "Tenant inativo" });
+      }
+      req.auth = {
+        type: "mcp_key",
+        tenantId: resolved.tenantId,
+        projectId: resolved.projectId,
+        keyId: resolved.keyId,
+      };
+      return;
+    }
+
     return reply
       .code(401)
       .send({ error: "API key inválida ou ausente (header X-API-Key)" });

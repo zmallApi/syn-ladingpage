@@ -35,7 +35,7 @@ Project ganha `tenant_id` obrigatório. Não existe project “órfão” no sel
 | Tema | Decisão |
 |------|---------|
 | Auth Admin | Email + senha → JWT (httpOnly cookie ou Bearer). Troca o “colar PLATFORM_API_KEY”. |
-| Auth máquina (MCP) | API keys **por tenant** (`syn_tk_…`), hash no banco; escopo = todos os projects do tenant (path continua `/p/:projectId/mcp`). |
+| Auth máquina (MCP) | Preferir chaves **por projeto / por dev** (`syn_mcp_…`) — escopo = 1 project, sem gestão de tenant; Admin gera e entrega. `syn_tk_…` permanece para automação/ops (tenant inteiro); **não** colar no Cursor compartilhado. |
 | Super-admin | `PLATFORM_API_KEY` fica só para ops internas (listar todos tenants, suporte). Nunca entregue ao cliente. |
 | Roles | `owner` \| `admin` \| `member` no membership. Owner/admin: CRUD projects + keys. Member: operar missões/KL no project. |
 | Signup | `POST /auth/signup` cria User + Tenant + membership owner + primeira API key (mostrada 1×). |

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, getApiKey } from "../lib/api";
+import { api } from "../lib/api";
 import type { McpManifest, Project } from "../lib/types";
 import { StatusBadge } from "../components/StatusBadge";
 import { CapabilitiesPanel } from "../components/CapabilitiesPanel";
 import { McpConnectPanel } from "../components/McpConnectPanel";
+import { McpDevKeysPanel } from "../components/McpDevKeysPanel";
 
 const STORY_OS_STAGES = [
   { capabilityId: "eng_understand_story", label: "Understand" },
@@ -189,6 +190,7 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mcpManifest, setMcpManifest] = useState<McpManifest | null>(null);
+  const [mcpDevKey, setMcpDevKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,17 +277,20 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
       )}
 
       {ready && (
-        <div className="mb-6 rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
-          <div className="mb-1 flex justify-end">
-            <StatusBadge status="ok" />
+        <div className="mb-6 space-y-4">
+          <div className="rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
+            <div className="mb-1 flex justify-end">
+              <StatusBadge status="ok" />
+            </div>
+            <McpConnectPanel
+              url={mcpManifest?.url ?? api.mcpUrl(project.id)}
+              apiKey={mcpDevKey ?? "<MCP_DEV_KEY>"}
+              serverId={`synapsee-${project.id.slice(0, 8)}`}
+              clients={mcpManifest?.clients}
+              claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
+            />
           </div>
-          <McpConnectPanel
-            url={mcpManifest?.url ?? api.mcpUrl(project.id)}
-            apiKey={getApiKey() ?? "dev-key"}
-            serverId={`synapsee-${project.id.slice(0, 8)}`}
-            clients={mcpManifest?.clients}
-            claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
-          />
+          <McpDevKeysPanel projectId={project.id} onActiveKey={setMcpDevKey} />
         </div>
       )}
 

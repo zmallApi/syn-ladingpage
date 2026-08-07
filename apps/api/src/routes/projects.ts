@@ -383,6 +383,81 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  const mcpKeyBody = z.object({
+    name: z.string().min(1).max(120),
+  });
+
+  app.get<{ Params: { id: string } }>("/projects/:id/mcp-keys", async (req, reply) => {
+    const auth = requireAuth(req, reply);
+    if (!auth) return;
+    if (auth.type === "mcp_key") {
+      return reply.code(403).send({ error: "Chave MCP não pode listar chaves" });
+    }
+    const record = loadAccessibleProject(app.store, auth, req.params.id, reply);
+    if (!record) return;
+    return { keys: app.store.listMcpKeys(record.id) };
+  });
+
+  app.post<{ Params: { id: string } }>("/projects/:id/mcp-keys", async (req, reply) => {
+    const auth = requireAuth(req, reply);
+    if (!auth) return;
+    if (auth.type === "mcp_key") {
+      return reply.code(403).send({ error: "Chave MCP não pode criar chaves" });
+    }
+    const record = loadAccessibleProject(app.store, auth, req.params.id, reply);
+    if (!record) return;
+    const parsed = mcpKeyBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    const createdBy = auth.type === "user" ? auth.userId : null;
+    const key = app.store.createMcpKey(record.id, parsed.data.name, createdBy);
+    if (!key) return reply.code(500).send({ error: "Falha ao gerar chave MCP" });
+
+    const cloudUrl =
+      process.env.PUBLIC_API_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+    const base = cloudUrl.replace(/\/$/, "");
+    const serverId = `synapsee-${record.id.slice(0, 8)}`;
+    const url = `${base}/p/${record.id}/mcp`;
+    const cursorConfig = {
+      mcpServers: {
+        [serverId]: {
+          url,
+          headers: { "X-API-Key": key.token },
+        },
+      },
+    };
+
+    return {
+      id: key.id,
+      name: key.name,
+      token: key.token,
+      tokenPrefix: key.tokenPrefix,
+      createdAt: key.createdAt,
+      warning: "Copie agora — o plaintext não será mostrado de novo. Envie com segurança ao desenvolvedor.",
+      mcpUrl: url,
+      cursorConfig,
+    };
+  });
+
+  app.delete<{ Params: { id: string; keyId: string } }>(
+    "/projects/:id/mcp-keys/:keyId",
+    async (req, reply) => {
+      const auth = requireAuth(req, reply);
+      if (!auth) return;
+      if (auth.type === "mcp_key") {
+        return reply.code(403).send({ error: "Chave MCP não pode revogar chaves" });
+      }
+      const record = loadAccessibleProject(app.store, auth, req.params.id, reply);
+      if (!record) return;
+      const ok = app.store.revokeMcpKey(record.id, req.params.keyId);
+      if (!ok) {
+        return reply.code(404).send({ error: "Chave não encontrada ou já revogada" });
+      }
+      return { ok: true };
+    },
+  );
+
   app.post<{ Params: { id: string } }>("/projects/:id/edge-tokens", async (req, reply) => {
     const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
     if (!record) return;

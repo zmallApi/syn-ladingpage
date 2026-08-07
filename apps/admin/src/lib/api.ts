@@ -848,4 +848,42 @@ export const api = {
       method: "DELETE",
     });
   },
+
+  listMcpKeys(id: string): Promise<{
+    keys: Array<{
+      id: string;
+      name: string;
+      tokenPrefix: string;
+      createdAt: string;
+      revokedAt: string | null;
+      lastUsedAt: string | null;
+    }>;
+  }> {
+    return request(`/projects/${id}/mcp-keys`);
+  },
+
+  createMcpKey(
+    id: string,
+    name: string,
+  ): Promise<{
+    id: string;
+    name: string;
+    token: string;
+    tokenPrefix: string;
+    createdAt: string;
+    warning?: string;
+    mcpUrl: string;
+    cursorConfig: Record<string, unknown>;
+  }> {
+    return request(`/projects/${id}/mcp-keys`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  revokeMcpKey(id: string, keyId: string): Promise<{ ok: boolean }> {
+    return request(`/projects/${id}/mcp-keys/${keyId}`, {
+      method: "DELETE",
+    });
+  },
 };
