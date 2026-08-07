@@ -52,6 +52,8 @@ export function EngineeringKnowledgePanel({
     entities: number;
     edges: number;
     enrichments?: number;
+    repositories?: number;
+    byType?: Record<string, number>;
     sync: Array<{
       projection: string;
       lastSyncAt: string | null;
@@ -359,13 +361,15 @@ export function EngineeringKnowledgePanel({
         <h2 className="text-lg font-semibold text-white">Knowledge Layer</h2>
         <p className="mt-1 text-sm text-slate-400">
           Sincronize fontes, revise links Task ↔ código e confirme enriquecimentos
-          do Knowledge Builder. Tokens ficam na aba Edge
+          do Knowledge Builder. O inventário de repositórios (sync GitHub) alimenta
+          candidatos de MS em histórias novas — confirme o alvo no Refine/Impact.
+          Tokens ficam na aba Edge
           {isEdge ? "." : " (ou cole no Sync em modo local)."}
         </p>
       </div>
 
       {stats && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
           <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">
               Fatos
@@ -379,6 +383,14 @@ export function EngineeringKnowledgePanel({
               Relações
             </p>
             <p className="mt-1 text-xl font-semibold text-white">{stats.edges}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">
+              Repos
+            </p>
+            <p className="mt-1 text-xl font-semibold text-white">
+              {stats.repositories ?? stats.byType?.Repository ?? 0}
+            </p>
           </div>
           <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">

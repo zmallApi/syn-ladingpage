@@ -18,7 +18,9 @@ export type CanonicalRelation =
   | "implements"
   | "contains"
   | "touches"
-  | "related_to";
+  | "related_to"
+  /** Code entity belongs to a synced Repository (survives re-link). */
+  | "part_of";
 
 /** inferred = linker; confirmed/rejected = humano (sobrevive ao re-link). */
 export type EdgeStatus = "inferred" | "confirmed" | "rejected";

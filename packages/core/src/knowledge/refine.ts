@@ -171,10 +171,25 @@ export function refineStory(understand: DiscoveryResult): RefineResult {
         );
         continue;
       }
-      resolve(
-        q,
-        "Greenfield: nenhum vínculo Task↔código confirmado — Impact deve partir do corpo da história.",
-      );
+      {
+        const inv = (understand.candidateRepositories ?? []).filter((c) =>
+          c.via.startsWith("repo-inventory:"),
+        );
+        if (inv[0]) {
+          resolve(
+            q,
+            `Greenfield com inventário de repos — candidato principal: ${inv
+              .map((c) => c.repository)
+              .slice(0, 3)
+              .join(", ")}. Confirmar alvo no Impact.`,
+          );
+        } else {
+          resolve(
+            q,
+            "Greenfield: nenhum vínculo Task↔código confirmado — Impact deve partir do corpo da história.",
+          );
+        }
+      }
       continue;
     }
 
@@ -376,6 +391,25 @@ export function refineStory(understand: DiscoveryResult): RefineResult {
     (hasToBe || hasDataModel || hasApi) &&
     blockingLeft.length === 0 &&
     acceptanceGaps.length === 0;
+
+  const inventoryRepos = (understand.candidateRepositories ?? []).filter(
+    (c) => c.via.startsWith("repo-inventory:"),
+  );
+  if (
+    understand.linkConfidence === "none" &&
+    inventoryRepos[0] &&
+    !remaining.some((q) => /repositório|repositorio/i.test(q))
+  ) {
+    remaining.push(
+      `Confirmar implementação no repositório ${inventoryRepos[0].repository}?` +
+        (inventoryRepos.length > 1
+          ? ` (outros candidatos: ${inventoryRepos
+              .slice(1)
+              .map((c) => c.repository)
+              .join(", ")})`
+          : ""),
+    );
+  }
 
   const summary = readyForImpact
     ? `Refine pronto para Impact: MVP definido, aceite fechado, ${resolved.length} pergunta(s) resolvida(s), ${remaining.length} residual(is).`

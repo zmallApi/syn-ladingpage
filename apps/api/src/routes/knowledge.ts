@@ -77,13 +77,18 @@ async function runEngineeringEnrich(
   provider?: LlmProvider,
 ) {
   const kl = knowledge.bindForProject(projectId);
-  const modules = [
+  const repoLimit = Math.min(10, limit);
+  const subjects = [
+    ...kl.listByType("Repository", repoLimit),
     ...kl.listByType("Module", limit),
     ...kl.listByType("Service", Math.min(20, limit)),
     ...kl.listByType("API", Math.min(20, limit)),
   ];
-  const builder = new KnowledgeBuilder(kl.enrichments, { limit, provider });
-  return builder.enrichEngineeringSubjects(modules);
+  const builder = new KnowledgeBuilder(kl.enrichments, {
+    limit: subjects.length,
+    provider,
+  });
+  return builder.enrichEngineeringSubjects(subjects);
 }
 
 function promoteEntityRole(

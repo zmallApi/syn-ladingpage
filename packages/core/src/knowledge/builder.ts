@@ -80,14 +80,20 @@ export class KnowledgeBuilder {
   }
 
   /**
-   * Enrich Module (and similar) subjects with semantic_summary + entity_role.
+   * Enrich Module / Service / API / Repository with semantic_summary (+ entity_role except Repository).
    */
   async enrichEngineeringSubjects(
     subjects: CanonicalEntity[],
   ): Promise<EnrichBatchResult> {
     const limit = this.opts.limit ?? 40;
     const candidates = subjects
-      .filter((e) => e.type === "Module" || e.type === "Service" || e.type === "API")
+      .filter(
+        (e) =>
+          e.type === "Module" ||
+          e.type === "Service" ||
+          e.type === "API" ||
+          e.type === "Repository",
+      )
       .slice(0, limit);
 
     const out: KnowledgeEnrichment[] = [];
@@ -105,6 +111,8 @@ export class KnowledgeBuilder {
         skipped += 1;
         if (summary.row) out.push(summary.row);
       }
+
+      if (subject.type === "Repository") continue;
 
       const role = await this.enrichEntityRole(subject);
       if (role.status === "created" && role.row) {
@@ -165,7 +173,9 @@ export class KnowledgeBuilder {
             role: "system",
             content: [
               "You are a Knowledge Builder analyst for Synapsee.",
-              "Explain the role of a code module/service from its name and evidence text.",
+              subject.type === "Repository"
+                ? "Summarize a GitHub repository's purpose and likely kind (api/web/worker) from name, description, language, topics."
+                : "Explain the role of a code module/service from its name and evidence text.",
               "Reply JSON: { summary: string (PT-BR, 1-3 sentences), responsibilities: string[] }.",
               "Do not invent files, APIs, or systems not implied by the evidence.",
             ].join(" "),
@@ -176,6 +186,7 @@ export class KnowledgeBuilder {
               title: subject.title,
               type: subject.type,
               evidence: text,
+              payload: subject.payload,
             }),
           },
         ],
@@ -190,12 +201,37 @@ export class KnowledgeBuilder {
       payload = {
         summary: llm.data.summary.trim(),
         responsibilities: (llm.data.responsibilities ?? []).slice(0, 12),
+        ...(subject.type === "Repository"
+          ? { kind: heuristicServiceType(subject.title) ?? "unknown" }
+          : {}),
       };
     } else {
+      const lang =
+        typeof subject.payload?.language === "string"
+          ? subject.payload.language
+          : "";
+      const desc =
+        typeof subject.payload?.description === "string"
+          ? subject.payload.description
+          : "";
       payload = {
-        summary: `Módulo/componente: ${subject.title}`,
+        summary:
+          subject.type === "Repository"
+            ? `Repositório ${subject.title}${lang ? ` (${lang})` : ""}${desc ? `: ${desc.slice(0, 160)}` : ""}`
+            : `Módulo/componente: ${subject.title}`,
         responsibilities: [] as string[],
         heuristic: true,
+        ...(subject.type === "Repository"
+          ? {
+              kind:
+                heuristicServiceType(subject.title) ??
+                (/web|front|ui|admin/i.test(subject.title)
+                  ? "web"
+                  : /worker|job|queue/i.test(subject.title)
+                    ? "worker"
+                    : "unknown"),
+            }
+          : {}),
       };
     }
 

@@ -17,7 +17,15 @@ export interface GitHubProjectionOptions {
   commitLimit?: number;
 }
 
-type GhRepo = { full_name: string; html_url: string; description: string | null; updated_at: string };
+type GhRepo = {
+  full_name: string;
+  html_url: string;
+  description: string | null;
+  updated_at: string;
+  language?: string | null;
+  topics?: string[];
+  default_branch?: string;
+};
 type GhPr = {
   number: number;
   title: string;
@@ -78,6 +86,33 @@ function moduleFromPath(filename: string): string | null {
   return null;
 }
 
+function repoPayload(r: {
+  description?: string | null;
+  language?: string | null;
+  topics?: string[];
+  default_branch?: string;
+  full_name?: string;
+}) {
+  return {
+    description: r.description ?? null,
+    language: r.language ?? null,
+    topics: Array.isArray(r.topics) ? r.topics : [],
+    default_branch: r.default_branch ?? null,
+    full_name: r.full_name ?? null,
+  };
+}
+
+function repoText(fullName: string, r: {
+  description?: string | null;
+  language?: string | null;
+  topics?: string[];
+}): string {
+  const topics = Array.isArray(r.topics) ? r.topics.join(", ") : "";
+  return [fullName, r.description ?? "", r.language ?? "", topics]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function createGitHubProjection(
   opts: GitHubProjectionOptions,
 ): SourceProjection {
@@ -94,23 +129,50 @@ export function createGitHubProjection(
 
     async introspectScopes() {
       if (opts.repos?.length) {
-        return opts.repos.map(
-          (r): ScopeMeta => ({
-            id: r,
-            label: r,
-            kind: "repository",
-          }),
-        );
+        const out: ScopeMeta[] = [];
+        for (const r of opts.repos) {
+          const [owner, repo] = r.split("/");
+          if (!owner || !repo) {
+            out.push({ id: r, label: r, kind: "repository" });
+            continue;
+          }
+          try {
+            const meta = await gh<GhRepo>(token, `/repos/${owner}/${repo}`);
+            out.push({
+              id: meta.full_name,
+              label: meta.full_name,
+              kind: "repository",
+              meta: {
+                url: meta.html_url,
+                updated_at: meta.updated_at,
+                description: meta.description,
+                language: meta.language,
+                topics: meta.topics ?? [],
+                default_branch: meta.default_branch,
+              },
+            });
+          } catch {
+            out.push({ id: r, label: r, kind: "repository" });
+          }
+        }
+        return out;
       }
       const repos = await gh<GhRepo[]>(token, "/user/repos", {
-        per_page: opts.repos?.length ? 50 : 10,
+        per_page: 10,
         sort: "updated",
       });
       return repos.map((r) => ({
         id: r.full_name,
         label: r.full_name,
         kind: "repository",
-        meta: { url: r.html_url, updated_at: r.updated_at, description: r.description },
+        meta: {
+          url: r.html_url,
+          updated_at: r.updated_at,
+          description: r.description,
+          language: r.language,
+          topics: r.topics ?? [],
+          default_branch: r.default_branch,
+        },
       }));
     },
 
@@ -118,28 +180,45 @@ export function createGitHubProjection(
       const since = cursor ? Date.parse(cursor) : NaN;
       const sinceOk = !Number.isNaN(since);
       const scopes = await this.introspectScopes();
-      const repos = scopes.map((s) => s.id);
 
       for (const scope of scopes) {
         const fullName = scope.id;
         const [owner, repo] = fullName.split("/");
         if (!owner || !repo) continue;
 
-        const metaUpdated =
+        let language =
+          typeof scope.meta?.language === "string" ? scope.meta.language : null;
+        let topics = Array.isArray(scope.meta?.topics)
+          ? (scope.meta.topics as string[])
+          : [];
+        let defaultBranch =
+          typeof scope.meta?.default_branch === "string"
+            ? scope.meta.default_branch
+            : null;
+        let metaUpdated =
           typeof scope.meta?.updated_at === "string"
             ? scope.meta.updated_at
             : undefined;
-        const metaDesc =
+        let metaDesc =
           typeof scope.meta?.description === "string"
             ? scope.meta.description
             : null;
+        let htmlUrl =
+          typeof scope.meta?.url === "string" ? scope.meta.url : undefined;
 
-        let repoMeta: GhRepo | null = null;
-        if (!metaUpdated) {
+        if (!metaUpdated || language == null) {
           try {
-            repoMeta = await gh<GhRepo>(token, `/repos/${owner}/${repo}`);
+            const repoMeta = await gh<GhRepo>(token, `/repos/${owner}/${repo}`);
+            metaUpdated = metaUpdated ?? repoMeta.updated_at;
+            metaDesc = metaDesc ?? repoMeta.description;
+            htmlUrl = htmlUrl ?? repoMeta.html_url;
+            language = language ?? repoMeta.language ?? null;
+            if (!topics.length && repoMeta.topics?.length) {
+              topics = repoMeta.topics;
+            }
+            defaultBranch = defaultBranch ?? repoMeta.default_branch ?? null;
           } catch {
-            continue;
+            if (!metaUpdated) continue;
           }
         }
 
@@ -149,12 +228,20 @@ export function createGitHubProjection(
           source: "github",
           externalId: fullName,
           title: fullName,
-          url:
-            (typeof scope.meta?.url === "string" ? scope.meta.url : undefined) ??
-            repoMeta?.html_url,
-          updatedAt: metaUpdated ?? repoMeta?.updated_at,
-          text: [fullName, metaDesc ?? repoMeta?.description ?? ""].join("\n"),
-          payload: { description: metaDesc ?? repoMeta?.description },
+          url: htmlUrl,
+          updatedAt: metaUpdated,
+          text: repoText(fullName, {
+            description: metaDesc,
+            language,
+            topics,
+          }),
+          payload: repoPayload({
+            description: metaDesc,
+            language,
+            topics,
+            default_branch: defaultBranch ?? undefined,
+            full_name: fullName,
+          }),
         };
         yield { kind: "entity", entity: repoEntity } satisfies CanonicalFact;
 
@@ -194,6 +281,15 @@ export function createGitHubProjection(
             },
           };
           yield { kind: "entity", entity: prEntity };
+          yield {
+            kind: "edge",
+            edge: {
+              fromId: prEntity.id,
+              toId: repoEntity.id,
+              rel: "part_of",
+              evidence: { via: "repository_scope" },
+            },
+          };
 
           if (pr.head?.ref) {
             const branchId = `${fullName}@${pr.head.ref}`;
@@ -263,28 +359,59 @@ export function createGitHubProjection(
                 evidence: { via: "pull_request_commits" },
               },
             };
+            yield {
+              kind: "edge",
+              edge: {
+                fromId: commitEntity.id,
+                toId: repoEntity.id,
+                rel: "part_of",
+                evidence: { via: "repository_scope" },
+              },
+            };
           }
 
           for (const mod of modules) {
-            const modEntity: CanonicalEntity = {
+            // Namespaced (new) + legacy inferred id for enrich backward-compat
+            const nsEntity: CanonicalEntity = {
+              id: entityId("github", "Module", `${fullName}:${mod}`),
+              type: "Module",
+              source: "github",
+              externalId: `${fullName}:${mod}`,
+              title: mod,
+              text: `${mod} (${fullName})`,
+              payload: { repository: fullName },
+            };
+            const legacyEntity: CanonicalEntity = {
               id: entityId("inferred", "Module", mod),
               type: "Module",
               source: "inferred",
               externalId: mod,
               title: mod,
               text: mod,
-              payload: {},
+              payload: { repository: fullName },
             };
-            yield { kind: "entity", entity: modEntity };
-            yield {
-              kind: "edge",
-              edge: {
-                fromId: prEntity.id,
-                toId: modEntity.id,
-                rel: "touches",
-                evidence: { via: "path_heuristic", from: "pull_request_files" },
-              },
-            };
+            yield { kind: "entity", entity: nsEntity };
+            yield { kind: "entity", entity: legacyEntity };
+            for (const modEntity of [nsEntity, legacyEntity]) {
+              yield {
+                kind: "edge",
+                edge: {
+                  fromId: prEntity.id,
+                  toId: modEntity.id,
+                  rel: "touches",
+                  evidence: { via: "path_heuristic", from: "pull_request_files" },
+                },
+              };
+              yield {
+                kind: "edge",
+                edge: {
+                  fromId: modEntity.id,
+                  toId: repoEntity.id,
+                  rel: "part_of",
+                  evidence: { via: "repository_scope" },
+                },
+              };
+            }
           }
         }
       }
@@ -303,8 +430,8 @@ export function createGitHubProjection(
           title: r.full_name,
           url: r.html_url,
           updatedAt: r.updated_at,
-          text: [r.full_name, r.description ?? ""].join("\n"),
-          payload: {},
+          text: repoText(r.full_name, r),
+          payload: repoPayload(r),
         };
       }
       if (type === "PullRequest") {

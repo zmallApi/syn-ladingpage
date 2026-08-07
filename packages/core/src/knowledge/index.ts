@@ -72,6 +72,11 @@ export {
   repoFromEntity,
 } from "./impactParse.js";
 export {
+  rankReposFromInventory,
+  moduleReposFromEdges,
+  type InventoryRepoCandidate,
+} from "./repoInventory.js";
+export {
   planStory,
   type PlanResult,
   type WorkItem,

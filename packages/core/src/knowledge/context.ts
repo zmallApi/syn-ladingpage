@@ -13,8 +13,82 @@ import { significantTokens } from "./similarity.js";
 import { parseStoryBody } from "./storyBody.js";
 import { resolveTaskRef } from "./resolveTask.js";
 import { applyEnrichmentsToDiscovery } from "./applyEnrichments.js";
+import { rankReposFromInventory } from "./repoInventory.js";
 import type { EnrichmentPort } from "./enrichment.js";
 import type { LlmProvider } from "../llm/index.js";
+
+/** Merge greenfield repo-inventory candidates when Task↔código is weak/absent. */
+function applyRepoInventoryCandidates(
+  result: DiscoveryResult,
+  kl: KnowledgeLayerPort,
+  task: CanonicalEntity,
+): DiscoveryResult {
+  const existing = [...(result.candidateRepositories ?? [])];
+  const hasStrong = existing.some(
+    (c) => c.confidence === "linked" || c.confidence === "evidence",
+  );
+  if (hasStrong) {
+    return { ...result, candidateRepositories: existing };
+  }
+
+  const repositories = kl.listByType("Repository", 30);
+  if (!repositories.length) {
+    return { ...result, candidateRepositories: existing };
+  }
+
+  const modules = kl.listByType("Module", 80);
+  const edges: CanonicalEdge[] = [];
+  for (const r of repositories.slice(0, 15)) {
+    const t = kl.traverse(r.id, { depth: 1 });
+    for (const e of t.edges) {
+      if (e.rel === "part_of") edges.push(e);
+    }
+  }
+
+  const enrichSummaries = new Map<string, string>();
+  if (kl.enrichments) {
+    const rows = kl.enrichments.listBySubjects(
+      repositories.map((r) => r.id),
+      { status: ["confirmed", "proposed"], kinds: ["semantic_summary"] },
+    );
+    for (const row of rows) {
+      const s = row.payload?.summary;
+      if (typeof s === "string" && s.trim()) {
+        enrichSummaries.set(row.subjectId, s);
+      }
+    }
+  }
+
+  const ranked = rankReposFromInventory({
+    storyText: `${task.title}\n${task.text}`,
+    repositories,
+    modules,
+    edges,
+    enrichSummaries,
+    limit: 3,
+  });
+
+  const byRepo = new Map(
+    existing.map((c) => [c.repository.toLowerCase(), c] as const),
+  );
+  for (const r of ranked) {
+    const key = r.repository.toLowerCase();
+    const prev = byRepo.get(key);
+    if (!prev || prev.confidence === "inferred") {
+      byRepo.set(key, {
+        repository: r.repository,
+        url: r.url,
+        via: r.via,
+        confidence: "inferred",
+      });
+    }
+  }
+
+  return {
+    ...result,
+    candidateRepositories: [...byRepo.values()],
+  };
+}
 
 export interface KnowledgeLayerPort {
   get(id: string): CanonicalEntity | null;
@@ -98,7 +172,8 @@ export async function buildDiscoveryContext(
     }
   }
 
-  const projectRepos = kl.listByType("Repository", 30).map((r) => ({
+  const projectRepoEntities = kl.listByType("Repository", 30);
+  const projectRepos = projectRepoEntities.map((r) => ({
     id: r.id,
     name: r.title || r.externalId,
     url: r.url,
@@ -127,7 +202,10 @@ export async function buildDiscoveryContext(
   let working = base;
 
   if (kl.enrichments) {
-    const subjectIds = unique.map((e) => e.id);
+    const subjectIds = [
+      ...unique.map((e) => e.id),
+      ...projectRepoEntities.map((r) => r.id),
+    ];
     const stored = kl.enrichments.listBySubjects(subjectIds, {
       status: ["confirmed", "proposed"],
       kinds: ["semantic_summary"],
@@ -137,14 +215,13 @@ export async function buildDiscoveryContext(
     enrichmentsHit = applied.enrichmentsHit;
     if (applied.skipLlmRefine) {
       llmCallsSaved = true;
+      const withInventory = applyRepoInventoryCandidates(working, kl, task);
       return {
-        ...working,
+        ...withInventory,
         llmUsed: false,
         enrichmentsHit,
         llmCallsSaved: true,
         resolvedTask: resolved.resolved,
-        candidateRepositories:
-          working.candidateRepositories ?? base.candidateRepositories,
         projectRepositories: projectRepos,
       };
     }
@@ -154,13 +231,20 @@ export async function buildDiscoveryContext(
     working,
     opts?.llmProvider,
   );
+  const withInventory = applyRepoInventoryCandidates(
+    {
+      ...withMeta,
+      candidateRepositories:
+        withMeta.candidateRepositories ?? base.candidateRepositories,
+    },
+    kl,
+    task,
+  );
   return {
-    ...withMeta,
+    ...withInventory,
     enrichmentsHit,
     llmCallsSaved,
     resolvedTask: resolved.resolved,
-    candidateRepositories:
-      withMeta.candidateRepositories ?? base.candidateRepositories,
     projectRepositories: projectRepos,
   };
 }

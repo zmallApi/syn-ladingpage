@@ -13,6 +13,7 @@ import {
   parseApiEndpoints,
   extractGithubRepo,
   scoreTaskMatch,
+  rankReposFromInventory,
 } from "../packages/core/src/knowledge/index.ts";
 import {
   ENGINEERING_STORY_OS_CAPABILITIES,
@@ -708,4 +709,186 @@ console.log(
     2,
   ),
 );
+
+// --- Repo inventory ranking (greenfield multi-repo) ---
+{
+  const billing = {
+    id: entityId("github", "Repository", "acme/billing-api"),
+    type: "Repository",
+    source: "github",
+    externalId: "acme/billing-api",
+    title: "acme/billing-api",
+    url: "https://github.com/acme/billing-api",
+    text: "acme/billing-api\nBilling and invoices API\nTypeScript",
+    payload: {
+      description: "Billing and invoices API",
+      language: "TypeScript",
+      topics: ["billing", "invoices"],
+      full_name: "acme/billing-api",
+    },
+  };
+  const marketing = {
+    id: entityId("github", "Repository", "acme/marketing-site"),
+    type: "Repository",
+    source: "github",
+    externalId: "acme/marketing-site",
+    title: "acme/marketing-site",
+    url: "https://github.com/acme/marketing-site",
+    text: "acme/marketing-site\nMarketing landing pages\nTypeScript",
+    payload: {
+      description: "Marketing landing pages",
+      language: "TypeScript",
+      topics: ["marketing"],
+      full_name: "acme/marketing-site",
+    },
+  };
+  const ranked = rankReposFromInventory({
+    storyText:
+      "Criar endpoint de faturas no billing-api para invoices do cliente",
+    repositories: [billing, marketing],
+    modules: [
+      {
+        id: entityId("github", "Module", "acme/billing-api:Invoices"),
+        type: "Module",
+        source: "github",
+        externalId: "acme/billing-api:Invoices",
+        title: "Invoices",
+        text: "Invoices (acme/billing-api)",
+        payload: { repository: "acme/billing-api" },
+      },
+    ],
+    edges: [
+      {
+        fromId: entityId("github", "Module", "acme/billing-api:Invoices"),
+        toId: billing.id,
+        rel: "part_of",
+        evidence: { via: "repository_scope" },
+      },
+    ],
+  });
+  assert(
+    ranked[0]?.repository === "acme/billing-api",
+    `inventory should pick billing-api: ${JSON.stringify(ranked)}`,
+  );
+  assert(
+    ranked[0]?.via.startsWith("repo-inventory:"),
+    "via must be repo-inventory",
+  );
+
+  const noMatch = rankReposFromInventory({
+    storyText: "Atualizar cores do tema visual genérico sem contexto",
+    repositories: [billing, marketing],
+  });
+  assert(
+    noMatch.length === 0,
+    `weak overlap must not invent a repo: ${JSON.stringify(noMatch)}`,
+  );
+
+  const single = rankReposFromInventory({
+    storyText: "qualquer historia nova",
+    repositories: [billing],
+  });
+  assert(
+    single[0]?.repository === "acme/billing-api",
+    "single synced repo is always a candidate",
+  );
+
+  // Impact consumes inventory candidates
+  const greenInv = discoverStory({
+    task: {
+      id: entityId("clickup", "Task", "new-billing"),
+      type: "Task",
+      source: "clickup",
+      externalId: "86enewbill",
+      title: "Endpoint de faturas no billing-api",
+      text: "## TO-BE\nExpor GET /invoices\n## Aceite\nLista faturas do cliente",
+      payload: {},
+    },
+    related: [billing, marketing],
+    edges: [],
+  });
+  greenInv.candidateRepositories = ranked.map((r) => ({
+    repository: r.repository,
+    url: r.url,
+    via: r.via,
+    confidence: r.confidence,
+  }));
+  greenInv.projectRepositories = [
+    { id: billing.id, name: billing.title, url: billing.url },
+    { id: marketing.id, name: marketing.title, url: marketing.url },
+  ];
+  greenInv.linkConfidence = "none";
+  const refinedInv = refineStory(greenInv);
+  assert(
+    refinedInv.openQuestions.some((q) =>
+      /Confirmar implementação no repositório acme\/billing-api/i.test(q),
+    ),
+    `refine should ask to confirm inventory repo: ${refinedInv.openQuestions.join(" | ")}`,
+  );
+  const impactInv = impactStory(refinedInv);
+  assert(
+    impactInv.affectedServices.some(
+      (s) =>
+        s.repository === "acme/billing-api" && s.confidence === "inferred",
+    ),
+    `impact should list inventory MS: ${JSON.stringify(impactInv.affectedServices)}`,
+  );
+  assert(
+    impactInv.warnings.some((w) => /inventário de repos/i.test(w)),
+    `expected inventory warning: ${impactInv.warnings.join(" | ")}`,
+  );
+
+  // Linked Task↔PR must keep confidence linked (inventory must not win)
+  const linkedPr = {
+    id: entityId("github", "PullRequest", "acme/app#9"),
+    type: "PullRequest",
+    source: "github",
+    externalId: "acme/app#9",
+    title: "feat: CU-99 auth",
+    url: "https://github.com/acme/app/pull/9",
+    text: "feat: CU-99 auth",
+    payload: { repository: "acme/app", number: 9 },
+  };
+  const linkedTask = {
+    id: entityId("clickup", "Task", "cu99"),
+    type: "Task",
+    source: "clickup",
+    externalId: "cu99",
+    title: "CU-99 Auth login",
+    text: "Auth login",
+    payload: {},
+  };
+  const linkedDisc = discoverStory({
+    task: linkedTask,
+    related: [linkedPr, billing, marketing],
+    edges: [
+      {
+        fromId: linkedTask.id,
+        toId: linkedPr.id,
+        rel: "implements",
+        score: 0.95,
+        status: "confirmed",
+      },
+    ],
+  });
+  // Inject competing inventory candidates — linked must still win in Impact
+  linkedDisc.candidateRepositories = [
+    ...(linkedDisc.candidateRepositories ?? []),
+    {
+      repository: "acme/billing-api",
+      via: "repo-inventory:billing-api",
+      confidence: "inferred",
+    },
+  ];
+  const impactKeepLinked = impactStory(refineStory(linkedDisc));
+  const appSvc = impactKeepLinked.affectedServices.find(
+    (s) => s.repository === "acme/app",
+  );
+  assert(
+    appSvc?.confidence === "linked",
+    `linked repo must stay linked: ${JSON.stringify(impactKeepLinked.affectedServices)}`,
+  );
+}
+
+console.log("repo-inventory smoke ok");
 process.exit(0);

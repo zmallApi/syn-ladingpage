@@ -190,16 +190,21 @@ export function impactStory(refine: RefineResult): ImpactResult {
       confidence: meta.confidence,
       reason: meta.from.some((f) => f.startsWith("pr-linked:"))
         ? `PR vinculado na Knowledge Layer (${meta.from.filter((f) => f.startsWith("pr-linked:")).length} evidência(s))`
-        : meta.from.some((f) => f.startsWith("project-sync:"))
-          ? meta.from[0]!.replace(/^project-sync:/, "Repositório do projeto (sync GitHub): ")
-          : `Evidência na KL: ${meta.from
-              .map((f) =>
-                f
-                  .replace(/^(commit|pr-similar|pr-linked|commit-as-is|pr-as-is|related|repo-entity):/, "")
-                  .slice(0, 60),
-              )
-              .slice(0, 2)
-              .join("; ")}`,
+        : meta.from.some((f) => f.startsWith("repo-inventory:"))
+          ? `Candidato por inventário de repos (confirmar): ${meta.from
+              .filter((f) => f.startsWith("repo-inventory:"))
+              .map((f) => f.replace(/^repo-inventory:/, ""))
+              .join("; ")}`
+          : meta.from.some((f) => f.startsWith("project-sync:"))
+            ? meta.from[0]!.replace(/^project-sync:/, "Repositório do projeto (sync GitHub): ")
+            : `Evidência na KL: ${meta.from
+                .map((f) =>
+                  f
+                    .replace(/^(commit|pr-similar|pr-linked|commit-as-is|pr-as-is|related|repo-entity|repo-inventory):/, "")
+                    .slice(0, 60),
+                )
+                .slice(0, 2)
+                .join("; ")}`,
       url: meta.url ?? `https://github.com/${repository}`,
       areas: areasFromSymbols,
     });
@@ -380,8 +385,13 @@ export function impactStory(refine: RefineResult): ImpactResult {
     warnings.push(...refine.acceptanceGaps, ...refine.scopeGaps.slice(0, 2));
   }
   if (understand.linkConfidence === "none") {
+    const fromInventory = affectedServices.some((s) =>
+      s.reason.includes("inventário de repos"),
+    );
     warnings.push(
-      "Sem vínculo Task↔código — serviços listados só por evidência AS-IS/similaridade.",
+      fromInventory
+        ? "Sem vínculo Task↔código — MS alvo por inventário de repos (confirmar antes do PR)."
+        : "Sem vínculo Task↔código — serviços listados só por evidência AS-IS/similaridade.",
     );
   }
 

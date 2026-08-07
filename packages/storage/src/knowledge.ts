@@ -419,6 +419,8 @@ export class KnowledgeLayerStore implements KnowledgeLayerPort {
     entities: number;
     edges: number;
     enrichments: number;
+    repositories: number;
+    byType: Record<string, number>;
   } {
     const e = this.db
       .prepare(`SELECT COUNT(*) AS c FROM kl_nodes WHERE project_id = ?`)
@@ -429,10 +431,19 @@ export class KnowledgeLayerStore implements KnowledgeLayerPort {
     const en = this.db
       .prepare(`SELECT COUNT(*) AS c FROM kl_enrichments WHERE project_id = ?`)
       .get(projectId) as { c: number };
+    const typeRows = this.db
+      .prepare(
+        `SELECT type AS t, COUNT(*) AS c FROM kl_nodes WHERE project_id = ? GROUP BY type`,
+      )
+      .all(projectId) as Array<{ t: string; c: number }>;
+    const byType: Record<string, number> = {};
+    for (const row of typeRows) byType[String(row.t)] = Number(row.c);
     return {
       entities: Number(e.c),
       edges: Number(g.c),
       enrichments: Number(en.c),
+      repositories: byType.Repository ?? 0,
+      byType,
     };
   }
 
