@@ -837,8 +837,15 @@ export const api = {
       ready: boolean;
       createdAt: string;
       package: Record<string, unknown>;
+      params?: Record<string, unknown>;
     }>;
   }> {
     return request(`/projects/${id}/missions/runs?limit=${limit}`);
+  },
+
+  deleteMissionRun(id: string, runId: string): Promise<void> {
+    return request(`/projects/${id}/missions/runs/${runId}`, {
+      method: "DELETE",
+    });
   },
 };

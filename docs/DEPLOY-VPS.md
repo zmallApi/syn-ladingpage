@@ -84,10 +84,30 @@ docker ps --filter name=pfit --format '{{.Names}} {{.Status}}'
 1. Abra o Admin → **Criar conta** (tenant self-serve), **ou**
 2. Entre com a `PLATFORM_API_KEY` (aba API key) para ops / projetos legados.
 
-## Atualizar depois de um git pull
+## Atualizar (pull + rebuild)
+
+Na VPS:
 
 ```bash
-cd synapsee
+cd /opt/synapsee
+git pull
+bash scripts/update-synapsee.sh
+```
+
+Se o script estiver fora do repo (ex.: `/opt/script`):
+
+```bash
+SYNAPSEE_DIR=/opt/synapsee bash /opt/script/update-synapsee.sh
+```
+
+Opções: `--backup` (SQLite antes do deploy), `--no-build`, `--skip-health`.
+
+> Scripts `.sh` devem ter fim de linha LF (Unix). Se aparecer `$'\r': command not found`, rode: `sed -i 's/\r$//' update-synapsee.sh`
+
+Equivalente manual:
+
+```bash
+cd /opt/synapsee
 git pull
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```

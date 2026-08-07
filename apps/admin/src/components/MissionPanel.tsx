@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { api } from "../lib/api";
 import type { Project } from "../lib/types";
 
@@ -56,7 +56,24 @@ type MissionRunRow = {
   ready: boolean;
   createdAt: string;
   package: MissionPackageView;
+  params?: Record<string, unknown>;
 };
+
+/** Prefer story/objective title over generic mission catalog name. */
+function storyTitleOf(row: MissionRunRow): string {
+  const obj = String(row.package?.objective ?? "").trim();
+  if (obj) return obj;
+  const ctx = row.package?.context;
+  if (ctx && typeof ctx === "object") {
+    const taskRef = (ctx as Record<string, unknown>).taskRef;
+    if (typeof taskRef === "string" && taskRef.trim()) return taskRef.trim();
+  }
+  const paramRef = row.params?.taskRef;
+  if (typeof paramRef === "string" && paramRef.trim()) return paramRef.trim();
+  const missionTitle = String(row.package?.missionTitle ?? "").trim();
+  if (missionTitle) return missionTitle;
+  return row.missionId;
+}
 
 const CAP_CHIP: Record<string, string> = {
   eng_understand_story: "Understand",
@@ -132,6 +149,7 @@ export function MissionPanel({ project }: { project: Project }) {
             ready: r.ready,
             createdAt: r.createdAt,
             package: (r.package ?? {}) as MissionPackageView,
+            params: r.params,
           })),
         );
       } catch (err) {
@@ -179,6 +197,7 @@ export function MissionPanel({ project }: { project: Project }) {
           ready: r.ready,
           createdAt: r.createdAt,
           package: (r.package ?? {}) as MissionPackageView,
+          params: r.params,
         })),
       );
     } catch (err) {
@@ -202,6 +221,22 @@ export function MissionPanel({ project }: { project: Project }) {
     setSelected(row.missionId);
     setTab(isBusinessCollections(row.package) ? "mission" : "brief");
     setError(null);
+  }
+
+  async function deleteRun(row: MissionRunRow, e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!window.confirm(`Excluir run “${storyTitleOf(row)}”?`)) return;
+    try {
+      await api.deleteMissionRun(project.id, row.id);
+      setRuns((prev) => prev.filter((r) => r.id !== row.id));
+      if (activeRunId === row.id) {
+        setPkg(null);
+        setActiveRunId(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao excluir run");
+    }
   }
 
   function closePackage() {
@@ -668,29 +703,28 @@ export function MissionPanel({ project }: { project: Project }) {
           <ul className="mt-2 divide-y divide-border/60">
             {runs.map((r) => {
               const active = activeRunId === r.id;
-              const title =
-                String(r.package?.missionTitle || "").trim() ||
-                missionTitleOf(r.missionId, missions);
+              const story = storyTitleOf(r);
+              const missionLabel = missionTitleOf(r.missionId, missions);
               return (
                 <li key={r.id}>
-                  <button
-                    type="button"
-                    onClick={() => openRun(r)}
-                    className={`flex w-full items-center justify-between gap-3 px-2 py-2.5 text-left transition ${
-                      active
-                        ? "bg-cyan/5"
-                        : "hover:bg-surface"
+                  <div
+                    className={`flex w-full items-center gap-2 px-2 py-2.5 transition ${
+                      active ? "bg-cyan/5" : "hover:bg-surface"
                     }`}
                   >
-                    <div className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => openRun(r)}
+                      className="min-w-0 flex-1 text-left"
+                    >
                       <p className="truncate text-xs font-medium text-slate-200">
-                        {title}
+                        {story}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
-                        {missionTitleOf(r.missionId, missions)} ·{" "}
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        {missionLabel} ·{" "}
                         {new Date(r.createdAt).toLocaleString()}
                       </p>
-                    </div>
+                    </button>
                     <span
                       className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-medium ${
                         r.ready
@@ -700,7 +734,16 @@ export function MissionPanel({ project }: { project: Project }) {
                     >
                       {r.ready ? "Pronto" : "Rascunho"}
                     </span>
-                  </button>
+                    <button
+                      type="button"
+                      title="Excluir run"
+                      aria-label="Excluir run"
+                      onClick={(e) => void deleteRun(r, e)}
+                      className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-slate-500 transition hover:bg-red-500/10 hover:text-red-300"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </li>
               );
             })}

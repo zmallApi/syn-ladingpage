@@ -69,6 +69,15 @@ export const missionsRoutes: FastifyPluginAsync = async (app) => {
     };
   });
 
+  app.delete("/projects/:id/missions/runs/:runId", async (req, reply) => {
+    const { id, runId } = req.params as { id: string; runId: string };
+    const project = loadAccessibleProject(app.store, req.auth, id, reply);
+    if (!project) return;
+    const ok = app.store.missions.delete(id, runId);
+    if (!ok) return reply.code(404).send({ error: "Mission run not found" });
+    return reply.code(204).send();
+  });
+
   app.post("/projects/:id/missions/run", async (req, reply) => {
     const { id } = req.params as { id: string };
     const project = loadAccessibleProject(app.store, req.auth, id, reply);

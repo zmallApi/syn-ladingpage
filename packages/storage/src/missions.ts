@@ -112,4 +112,11 @@ export class MissionStore {
       createdAt: String(r.created_at),
     };
   }
+
+  delete(projectId: string, runId: string): boolean {
+    const res = this.db
+      .prepare(`DELETE FROM mission_runs WHERE project_id = ? AND id = ?`)
+      .run(projectId, runId);
+    return Number(res.changes) > 0;
+  }
 }
