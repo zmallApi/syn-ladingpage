@@ -141,12 +141,6 @@ function EngineeringMcpTools({ project }: { project: Project }) {
       <h2 className="mt-1 text-sm font-semibold text-white">
         Story OS · Engineering
       </h2>
-      <p className="mt-2 text-sm text-slate-400">
-        Não usa tabelas de ERP. O agente chama{" "}
-        <code className="text-slate-300">run_mission</code> (Implementar Story) ou
-        as capabilities do pipeline — contexto vem da Knowledge Layer (GitHub /
-        ClickUp via Edge).
-      </p>
       <ul className="mt-4 space-y-2">
         <li className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-slate-300">
           <span className="font-medium text-white">list_missions</span>
