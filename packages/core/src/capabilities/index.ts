@@ -7,4 +7,6 @@ export * from "./playbooks.js";
 export * from "./templates.js";
 export * from "./analyze.js";
 export * from "./helpers.js";
+export * from "./engineering.js";
+export * from "./productNames.js";
 export { refineWithLlm } from "./llm.js";

@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "node scripts/dev-platform.mjs",
+    "dev:platform": "node scripts/dev-platform.mjs",
     "dev:landing": "npm run dev --workspace=@synapse/landing",
     "build:landing": "npm run build --workspace=@synapse/landing",
     "preview:landing": "npm run preview --workspace=@synapse/landing",
@@ -19,6 +21,13 @@
     "start:edge": "npm run start --workspace=@synapse/edge",
     "build:edge": "npm run build --workspace=@synapse/edge",
     "db:up": "docker compose up -d",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:seed": "node scripts/db-seed.mjs",
+    "db:seed:pg": "node scripts/db-seed.mjs pg",
+    "db:seed:mysql": "node scripts/db-seed.mjs mysql",
+    "smoke:multi-tenant": "node scripts/smoke-multi-tenant.mjs",
+    "prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build",
+    "prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.prod down",
+    "prod:logs": "docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f"
   }
 }

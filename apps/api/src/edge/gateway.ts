@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 import type { ProjectStore } from "@synapse/storage";
 import type { SchemaSnapshot } from "@synapse/core";
-import { setCachedSchema } from "../schemaCache.js";
+import { setCachedSchema, clearCachedSchema } from "../schemaCache.js";
+import { resolveBusinessAwareStatus } from "./status.js";
 
 export type EdgeJobType =
   | "ping"
@@ -10,7 +11,11 @@ export type EdgeJobType =
   | "introspect"
   | "list"
   | "getById"
-  | "insert";
+  | "insert"
+  | "projection.test"
+  | "projection.syncPage"
+  | "projection.get"
+  | "projection.scopes";
 
 export interface EdgeJob {
   id: string;
@@ -95,15 +100,19 @@ export class EdgeGateway {
     const type = String(msg.type ?? "");
 
     if (type === "heartbeat") {
-      const raw = String(msg.status ?? "online");
-      const status =
-        raw === "error" ? "error" : raw === "offline" ? "offline" : "online";
+      const project = this.store.get(session.projectId);
+      const status = resolveBusinessAwareStatus(project?.vertical, msg);
+      if (status === "error") {
+        clearCachedSchema(session.projectId);
+      }
       this.store.setEdgePresence(session.projectId, {
         status,
         version: typeof msg.version === "string" ? msg.version : undefined,
         engine: typeof msg.engine === "string" ? msg.engine : undefined,
         resourceCount:
           typeof msg.resourceCount === "number" ? msg.resourceCount : undefined,
+        clearResourceCount: msg.dbOk === false || status === "error",
+        lastError: typeof msg.dbError === "string" ? msg.dbError : undefined,
       });
       return;
     }
@@ -114,6 +123,7 @@ export class EdgeGateway {
       this.store.setEdgePresence(session.projectId, {
         status: "online",
         resourceCount: Array.isArray(schema.resources) ? schema.resources.length : undefined,
+        lastError: null,
       });
       return;
     }

@@ -206,7 +206,6 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
             serverId={`synapsee-${project.id.slice(0, 8)}`}
             clients={mcpManifest?.clients}
             claudeDesktopStdio={mcpManifest?.claudeDesktopStdio}
-            tools={mcpManifest?.tools}
           />
         </div>
       )}

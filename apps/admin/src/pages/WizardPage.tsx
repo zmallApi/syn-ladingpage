@@ -6,6 +6,7 @@ import type {
   CreateProjectInput,
   DatabaseEngine,
   Project,
+  ProjectVertical,
   SchemaSnapshot,
 } from "../lib/types";
 import { ENGINE_OPTIONS } from "../lib/types";
@@ -32,6 +33,7 @@ export function WizardPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<ConnectionMode | null>(null);
+  const [vertical, setVertical] = useState<ProjectVertical | null>(null);
   const [form, setForm] = useState<CreateProjectInput>(emptyConnectionForm());
   const [edgeName, setEdgeName] = useState("");
   const [edgeEngine, setEdgeEngine] = useState<DatabaseEngine>("postgresql");
@@ -60,6 +62,7 @@ export function WizardPage() {
         }
         setProject(p);
         setMode(p.connectionMode ?? "cloud");
+        setVertical(p.vertical ?? "business");
         setSelected(p.exposedResources);
         if (p.connectionMode === "edge") {
           setConnectPhase(p.edgeStatus === "online" ? "connected" : "edge-wait");
@@ -88,10 +91,9 @@ export function WizardPage() {
     })();
   }, [existingId, navigate]);
 
-  // Poll Edge online status
+  // Poll Edge status — Business só fica online após probe do banco.
   useEffect(() => {
     if (!project || project.connectionMode !== "edge") return;
-    if (project.edgeStatus === "online" && connectPhase === "connected") return;
 
     const t = window.setInterval(async () => {
       try {
@@ -101,13 +103,16 @@ export function WizardPage() {
         if (p.edgeStatus === "online") {
           setConnectPhase("connected");
           setConnectProgress(100);
+        } else if (p.edgeStatus === "error" || p.edgeStatus === "offline") {
+          setConnectPhase("edge-wait");
+          setConnectProgress(40);
         }
       } catch {
         /* ignore */
       }
     }, 4000);
     return () => clearInterval(t);
-  }, [project?.id, project?.connectionMode, project?.edgeStatus, connectPhase]);
+  }, [project?.id, project?.connectionMode]);
 
   async function runIntrospect(projectId: string) {
     setBusy(true);
@@ -141,6 +146,50 @@ export function WizardPage() {
     if (!project) return;
     await runIntrospect(project.id);
   }
+
+  async function openSchemaEditor() {
+    if (!project) return;
+    setError(null);
+    setSelected(project.exposedResources ?? selected);
+    // Sempre reintrospecta — novas tabelas (ex.: seeds) precisam aparecer.
+    await runIntrospect(project.id);
+  }
+
+  function goToStage(target: number) {
+    if (!project) return;
+    if (target === 2) {
+      void openSchemaEditor();
+      return;
+    }
+    if (target === 3 && (project.exposedResources.length > 0 || genDone)) {
+      setGenDone(true);
+      setStep(3);
+      return;
+    }
+    if (target === 4 && project.exposedResources.length > 0) {
+      setStep(4);
+      return;
+    }
+    if (target === 1) {
+      setStep(1);
+      if (project.connectionMode === "edge") {
+        setConnectPhase(
+          project.edgeStatus === "online" ? "connected" : "edge-wait",
+        );
+      } else {
+        setConnectPhase("connected");
+        setConnectProgress(100);
+      }
+    }
+  }
+
+  const maxReachableStep = (() => {
+    if (!project) return step;
+    if (project.exposedResources.length > 0 || genDone) return 4;
+    if (schema || connectPhase === "connected" || project.edgeStatus === "online")
+      return Math.max(step, 2);
+    return Math.max(step, 1);
+  })();
 
   async function connectCloud() {
     if (!form.name.trim() || !form.host.trim() || !form.database.trim() || !form.username.trim()) {
@@ -186,7 +235,8 @@ export function WizardPage() {
     try {
       const result = await api.createEdgeProject({
         name: edgeName.trim(),
-        engine: edgeEngine,
+        engine: vertical === "engineering" ? "engineering" : edgeEngine,
+        vertical: vertical ?? "business",
       });
       setProject(result.project);
       setEdgeToken(result.edgeToken.token);
@@ -264,7 +314,11 @@ export function WizardPage() {
         </Link>
       </div>
 
-      <StageRail current={step} />
+      <StageRail
+        current={step}
+        maxReachable={maxReachableStep}
+        onSelect={project ? goToStage : undefined}
+      />
 
       <div className="mt-6 rounded-2xl border border-border bg-surface-card p-3 card-glow sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
@@ -290,34 +344,78 @@ export function WizardPage() {
         {step === 1 && !mode && !project && (
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-cyan">
-              01 — Como conectar
+              01 — {vertical ? "Como conectar" : "Escolha o vertical"}
             </p>
-            <p className="mb-4 text-sm text-slate-400">
-              Escolha se o Cloud diala o banco ou se um Edge no ambiente do cliente
-              inicia só conexões de saída.
+            <p className="mb-3 text-sm text-slate-400">
+              {vertical === "business"
+                ? "Business Knowledge usa banco de dados (ERP, billing, CRM). Escolha Cloud ou Edge."
+                : vertical === "engineering"
+                  ? "Engineering Knowledge usa GitHub e ClickUp via Edge."
+                  : "O Synapsee é uma plataforma. Escolha o vertical de conhecimento."}
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setMode("cloud")}
-                className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
-              >
-                <p className="text-sm font-semibold text-white">Cloud</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Host, usuário e senha no wizard. Ideal para POC e redes abertas.
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("edge")}
-                className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
-              >
-                <p className="text-sm font-semibold text-white">Edge</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Token + Docker no ambiente do cliente. Sem abrir portas para o Cloud.
-                </p>
-              </button>
-            </div>
+
+            {!vertical && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setVertical("business")}
+                  className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
+                >
+                  <p className="text-sm font-semibold text-white">Business Knowledge</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    ERP, billing, CRM — acesso ao banco via Cloud ou Edge.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVertical("engineering");
+                    setMode("edge");
+                  }}
+                  className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
+                >
+                  <p className="text-sm font-semibold text-white">Engineering Knowledge</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    GitHub + ClickUp — Story OS (Understand → Execute) via Context Engine.
+                  </p>
+                </button>
+              </div>
+            )}
+
+            {vertical === "business" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setVertical(null)}
+                  className="mb-3 text-xs text-slate-500 hover:text-cyan"
+                >
+                  ← Trocar vertical
+                </button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setMode("cloud")}
+                    className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
+                  >
+                    <p className="text-sm font-semibold text-white">Cloud</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Host, usuário e senha no wizard. Ideal quando o banco é acessível pela
+                      internet.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode("edge")}
+                    className="rounded-xl border border-border bg-surface p-4 text-left hover:border-cyan/40"
+                  >
+                    <p className="text-sm font-semibold text-white">Edge</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Token + Docker no ambiente do cliente. Credenciais do banco ficam no Edge.
+                    </p>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -380,7 +478,7 @@ export function WizardPage() {
               onClick={() => setMode(null)}
               className="mb-3 text-xs text-slate-500 hover:text-cyan"
             >
-              ← Trocar modo
+              ← Voltar (Cloud / Edge)
             </button>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-cyan">
               01 — Conexão Cloud
@@ -406,16 +504,22 @@ export function WizardPage() {
           <div>
             <button
               type="button"
-              onClick={() => setMode(null)}
+              onClick={() => {
+                setMode(null);
+                if (vertical === "engineering") setVertical(null);
+              }}
               className="mb-3 text-xs text-slate-500 hover:text-cyan"
             >
-              ← Trocar modo
+              ← Voltar
             </button>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-cyan">
               01 — Projeto Edge
+              {vertical === "engineering" ? " · Engineering" : ""}
             </p>
             <p className="mb-4 text-sm text-slate-400">
-              Sem host/senha no Cloud. Depois geramos o token e o comando Docker.
+              {vertical === "engineering"
+                ? "Tokens GitHub/ClickUp ficam no Edge. Sem host/senha no Cloud."
+                : "Sem host/senha no Cloud. Depois geramos o token e o comando Docker."}
             </p>
             <label className="mb-3 block">
               <span className="mb-1 block text-xs text-slate-500">Nome do sistema</span>
@@ -424,9 +528,12 @@ export function WizardPage() {
                 value={edgeName}
                 disabled={busy}
                 onChange={(e) => setEdgeName(e.target.value)}
-                placeholder="ERP Produção"
+                placeholder={
+                  vertical === "engineering" ? "Engenharia — Acme" : "ERP Produção"
+                }
               />
             </label>
+            {vertical !== "engineering" && (
             <label className="mb-4 block">
               <span className="mb-1 block text-xs text-slate-500">Engine (no Edge)</span>
               <select
@@ -443,6 +550,7 @@ export function WizardPage() {
                 ))}
               </select>
             </label>
+            )}
             <button
               type="button"
               disabled={busy}
@@ -464,8 +572,9 @@ export function WizardPage() {
                 01 — Instalar Edge
               </p>
               <p className="mb-4 text-sm text-slate-400">
-                Rode o agente na rede do cliente. Quando estiver online, continue para o
-                schema.
+                {project.vertical === "engineering"
+                  ? "Rode o Edge com tokens GitHub/ClickUp. Depois abra o projeto para sync e Story OS (Understand)."
+                  : "Rode o agente no ambiente do cliente. Quando estiver online, continue para o schema."}
               </p>
               <EdgeInstallPanel
                 dockerRun={dockerRun}
@@ -474,10 +583,16 @@ export function WizardPage() {
                 edgeLastSeen={project.edgeLastSeen}
                 edgeVersion={project.edgeVersion}
                 edgeResourceCount={project.edgeResourceCount}
+                edgeLastError={project.edgeLastError}
                 online={project.edgeStatus === "online"}
                 tokenPlaintext={edgeToken}
                 onGenerateToken={regenerateToken}
                 generating={generatingToken}
+                variant={
+                  project.vertical === "engineering"
+                    ? "engineering"
+                    : "business"
+                }
               />
               <div className="mx-auto mt-6 max-w-sm">
                 <ProgressBar
@@ -486,13 +601,25 @@ export function WizardPage() {
               </div>
               <button
                 type="button"
-                disabled={busy || project.edgeStatus !== "online"}
-                onClick={goToSchema}
+                disabled={
+                  busy ||
+                  (project.vertical !== "engineering" &&
+                    project.edgeStatus !== "online")
+                }
+                onClick={() => {
+                  if (project.vertical === "engineering") {
+                    navigate(`/projects/${project.id}`);
+                    return;
+                  }
+                  void goToSchema();
+                }}
                 className="mt-5 w-full rounded-xl cyan-gradient py-2.5 text-sm font-semibold text-surface disabled:opacity-50"
               >
-                {project.edgeStatus === "online"
-                  ? "Próxima etapa — Analisar schema"
-                  : "Aguardando Edge online…"}
+                {project.vertical === "engineering"
+                  ? "Abrir Missões"
+                  : project.edgeStatus === "online"
+                    ? "Próxima etapa — Analisar schema"
+                    : "Aguardando Edge online…"}
               </button>
             </div>
           )}
@@ -617,12 +744,22 @@ export function WizardPage() {
               <code className="break-all text-cyan">/p/{project.id}/</code>
             </p>
             <ApiPlayground projectId={project.id} resources={project.exposedResources} />
-            <Link
-              to={`/projects/${project.id}`}
-              className="mt-6 inline-block text-sm text-cyan hover:underline"
-            >
-              Ir para detalhe do sistema →
-            </Link>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void openSchemaEditor()}
+                className="rounded-xl border border-border px-4 py-2.5 text-sm text-slate-300 hover:border-cyan/40 hover:text-cyan disabled:opacity-50"
+              >
+                ← Alterar tabelas expostas
+              </button>
+              <Link
+                to={`/projects/${project.id}`}
+                className="text-sm text-cyan hover:underline"
+              >
+                Ir para detalhe do sistema →
+              </Link>
+            </div>
           </div>
         )}
       </div>

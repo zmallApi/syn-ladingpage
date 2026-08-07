@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
+import { loadAccessibleProject } from "../auth/access.js";
 import { z } from "zod";
 import {
   analyzeCapabilities,
   bindTemplate,
   canonicalizeRole,
   getTemplate,
+  KnowledgeBuilder,
   normalizeCapabilityIds,
   requiredExposedResources,
   resolveCapabilityId,
@@ -16,6 +18,7 @@ import {
   listProjectRows,
 } from "../edge/dataAccess.js";
 import { EdgeOfflineError } from "../edge/gateway.js";
+import { resolveProjectLlmProvider } from "../llmProvider.js";
 
 const putCapabilitiesBody = z.object({
   capabilityIds: z.array(z.string().min(1)),
@@ -38,28 +41,67 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
     return ensureProjectSchema(app.store, app.edge, record);
   }
 
+  function analyzeOpts(
+    record: NonNullable<ReturnType<typeof app.store.get>>,
+    extra?: { useLlm?: boolean },
+  ) {
+    const publicProject = app.store.toPublic(record);
+    return {
+      roleOverrides: overridesOf(record),
+      exposedResources: publicProject.exposedResources,
+      vertical:
+        record.vertical === "engineering"
+          ? ("engineering" as const)
+          : ("business" as const),
+      llmProvider: resolveProjectLlmProvider(app.store, record),
+      ...extra,
+    };
+  }
+
   app.get<{ Params: { id: string } }>(
     "/projects/:id/capabilities/analyze",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
 
       try {
         const snap = await withSchema(record);
-        const roleOverrides = overridesOf(record);
         const publicProject = app.store.toPublic(record);
-        const result = await analyzeCapabilities(snap, {
-          roleOverrides,
-          exposedResources: publicProject.exposedResources,
-        });
+        const llmProvider = resolveProjectLlmProvider(app.store, record);
+        const result = await analyzeCapabilities(snap, analyzeOpts(record));
         app.store.setBusinessProfile(record.id, {
           profile: result.profile,
           analyzedAt: new Date().toISOString(),
           llmUsed: result.llmUsed,
         });
 
+        let knowledgeEnrich: ReturnType<
+          KnowledgeBuilder["enrichBusinessProfile"]
+        > | null = null;
+        if (record.vertical !== "engineering") {
+          try {
+            const builder = new KnowledgeBuilder(
+              app.store.knowledge.bindEnrichments(record.id),
+              { provider: llmProvider },
+            );
+            knowledgeEnrich = builder.enrichBusinessProfile(
+              record.id,
+              result.profile,
+              snap,
+              {
+                llmUsed: result.llmUsed,
+                provider: llmProvider.name,
+                model: llmProvider.model,
+              },
+            );
+          } catch {
+            knowledgeEnrich = null;
+          }
+        }
+
         return {
           ...result,
+          knowledgeEnrich,
           activeCapabilities: publicProject.activeCapabilities,
           exposedResources: publicProject.exposedResources,
           roleOverrides: publicProject.roleOverrides,
@@ -77,18 +119,16 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/projects/:id/capabilities",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
 
       try {
         const snap = await withSchema(record);
-        const roleOverrides = overridesOf(record);
         const publicProject = app.store.toPublic(record);
-        const analysis = await analyzeCapabilities(snap, {
-          useLlm: false,
-          roleOverrides,
-          exposedResources: publicProject.exposedResources,
-        });
+        const analysis = await analyzeCapabilities(
+          snap,
+          analyzeOpts(record, { useLlm: false }),
+        );
 
         return {
           activeCapabilities: publicProject.activeCapabilities,
@@ -109,8 +149,8 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/projects/:id/role-overrides",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
       return { overrides: app.store.toPublic(record).roleOverrides };
     },
   );
@@ -118,8 +158,8 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
   app.put<{ Params: { id: string } }>(
     "/projects/:id/role-overrides",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
 
       const parsed = putOverridesBody.safeParse(req.body);
       if (!parsed.success) {
@@ -148,15 +188,24 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
         const updated = app.store.setRoleOverrides(record.id, cleaned);
         const publicProject = app.store.toPublic(updated!);
         const analysis = await analyzeCapabilities(snap, {
-          useLlm: false,
+          ...analyzeOpts(record, { useLlm: false }),
           roleOverrides: cleaned as RoleOverrides,
-          exposedResources: publicProject.exposedResources,
         });
         app.store.setBusinessProfile(record.id, {
           profile: analysis.profile,
           analyzedAt: new Date().toISOString(),
           llmUsed: false,
         });
+
+        try {
+          const builder = new KnowledgeBuilder(
+            app.store.knowledge.bindEnrichments(record.id),
+          );
+          builder.confirmBusinessRoleOverrides(cleaned);
+          builder.enrichBusinessProfile(record.id, analysis.profile, snap);
+        } catch {
+          /* enrichments best-effort */
+        }
 
         const changedKeys = Object.keys(cleaned).filter(
           (k) => previous[k] !== cleaned[k],
@@ -187,8 +236,8 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
   app.put<{ Params: { id: string } }>(
     "/projects/:id/capabilities",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
 
       const parsed = putCapabilitiesBody.safeParse(req.body);
       if (!parsed.success) {
@@ -204,12 +253,10 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
 
       try {
         const snap = await withSchema(record);
-        const roleOverrides = overridesOf(record);
-        const analysis = await analyzeCapabilities(snap, {
-          useLlm: false,
-          roleOverrides,
-          exposedResources: publicProject.exposedResources,
-        });
+        const analysis = await analyzeCapabilities(
+          snap,
+          analyzeOpts(record, { useLlm: false }),
+        );
         const available = new Map(
           analysis.suggestions.filter((s) => s.available).map((s) => [s.id, s]),
         );
@@ -219,6 +266,13 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
         const valid: string[] = [];
         for (const rawId of normalizeCapabilityIds(parsed.data.capabilityIds)) {
           const id = resolveCapabilityId(rawId);
+          if (
+            record.vertical !== "engineering" &&
+            (id.startsWith("eng_") || id === "discover_story")
+          ) {
+            invalid.push(rawId);
+            continue;
+          }
           const tpl = getTemplate(id);
           const suggestion = available.get(id);
           if (!tpl || !suggestion) {
@@ -288,8 +342,8 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Params: { id: string; capId: string } }>(
     "/projects/:id/capabilities/:capId/preview",
     async (req, reply) => {
-      const record = app.store.get(req.params.id);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.id, reply);
+      if (!record) return;
 
       const parsed = previewBody.safeParse(req.body ?? {});
       if (!parsed.success) {
@@ -306,15 +360,22 @@ export const capabilitiesRoutes: FastifyPluginAsync = async (app) => {
       const capId = resolveCapabilityId(req.params.capId);
       const tpl = getTemplate(capId);
       if (!tpl) return reply.code(404).send({ error: `Capacidade desconhecida: ${capId}` });
+      if (
+        record.vertical !== "engineering" &&
+        (tpl.domain === "engineering" || capId.startsWith("eng_"))
+      ) {
+        return reply.code(400).send({
+          error:
+            "Capacidades Story OS (Engineering) não estão disponíveis em projeto Business/ERP",
+        });
+      }
 
       try {
         const snap = await withSchema(record);
-        const roleOverrides = overridesOf(record);
-        const analysis = await analyzeCapabilities(snap, {
-          useLlm: false,
-          roleOverrides,
-          exposedResources: publicProject.exposedResources,
-        });
+        const analysis = await analyzeCapabilities(
+          snap,
+          analyzeOpts(record, { useLlm: false }),
+        );
         const bindings = bindTemplate(tpl, snap, analysis.profile.resourceRoles);
         if (!bindings && tpl.id !== "explain_business_model") {
           return reply.code(400).send({

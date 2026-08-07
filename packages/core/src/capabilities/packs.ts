@@ -85,6 +85,21 @@ const PACKS: PackDef[] = [
     ],
     minRoles: 1,
   },
+  {
+    id: "engineering_story_os",
+    title: "Story OS (Engineering)",
+    description:
+      "Pipeline da história: Understand → Refine → Impact → Plan → Execute.",
+    roles: [],
+    capabilities: [
+      "eng_understand_story",
+      "eng_refine_story",
+      "eng_impact_analysis",
+      "eng_implementation_plan",
+      "eng_execute_context",
+    ],
+    minRoles: 0,
+  },
 ];
 
 /**
@@ -103,6 +118,9 @@ export function suggestCapabilityPack(
   let bestScore = 0;
 
   for (const pack of PACKS) {
+    // Engineering Story OS is activated by vertical, not ERP role heuristics.
+    if (pack.roles.length === 0) continue;
+
     const matchedRoles = pack.roles.filter((role) => hasRole(profile.resourceRoles, role));
     if (matchedRoles.length < pack.minRoles) continue;
 

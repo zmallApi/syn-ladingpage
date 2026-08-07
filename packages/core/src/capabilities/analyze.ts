@@ -1,7 +1,11 @@
 import type { SchemaSnapshot } from "../adapters/types.js";
 import { requiredExposedResources } from "./helpers.js";
 import { analyzeBusinessProfile, hasRole } from "./heuristics.js";
+import type { LlmProvider } from "../llm/index.js";
 import { refineWithLlm } from "./llm.js";
+import {
+  ENGINEERING_STORY_OS_CAPABILITIES,
+} from "./engineering.js";
 import { suggestCapabilityPack } from "./packs.js";
 import {
   bindTemplate,
@@ -15,17 +19,23 @@ import type {
   RoleOverrides,
 } from "./types.js";
 
+const ENG_CAP_IDS = new Set<string>(ENGINEERING_STORY_OS_CAPABILITIES);
+
 function buildSuggestions(
   schema: SchemaSnapshot,
   domain: BusinessDomain,
   roles: AnalyzeResult["profile"]["resourceRoles"],
   preferredIds?: string[],
   exposedResources?: string[],
+  vertical: "business" | "engineering" = "business",
 ): CapabilitySuggestion[] {
-  const pool = [
-    ...listTemplatesForDomain(domain),
-    ...capabilityTemplates.filter((t) => t.domain === "any"),
-  ];
+  const pool =
+    vertical === "engineering"
+      ? capabilityTemplates.filter((t) => t.domain === "engineering")
+      : [
+          ...listTemplatesForDomain(domain),
+          ...capabilityTemplates.filter((t) => t.domain === "any"),
+        ];
   const seen = new Set<string>();
   const templates = pool.filter((t) => {
     if (seen.has(t.id)) return false;
@@ -91,17 +101,32 @@ export async function analyzeCapabilities(
     roleOverrides?: RoleOverrides | null;
     /** When set, mark suggestions unavailable if required tables aren't exposed. */
     exposedResources?: string[];
+    /** business = ERP capabilities only; engineering = Story OS only */
+    vertical?: "business" | "engineering";
+    llmProvider?: LlmProvider;
   },
 ): Promise<AnalyzeResult> {
+  const vertical = opts?.vertical ?? "business";
   let profile = analyzeBusinessProfile(schema, opts?.roleOverrides);
   let llmUsed = false;
   let llmRationale: string | undefined;
   let preferredIds: string[] | undefined;
 
-  const catalogIds = capabilityTemplates.map((t) => t.id);
+  const catalogIds = capabilityTemplates
+    .filter((t) =>
+      vertical === "engineering"
+        ? t.domain === "engineering"
+        : t.domain !== "engineering",
+    )
+    .map((t) => t.id);
 
-  if (opts?.useLlm !== false) {
-    const refined = await refineWithLlm(profile, schema, catalogIds);
+  if (opts?.useLlm !== false && vertical === "business") {
+    const refined = await refineWithLlm(
+      profile,
+      schema,
+      catalogIds,
+      opts.llmProvider,
+    );
     if (refined) {
       llmUsed = true;
       llmRationale = refined.rationale;
@@ -114,7 +139,9 @@ export async function analyzeCapabilities(
       } else if (refined.confidence != null) {
         profile = { ...profile, confidence: refined.confidence };
       }
-      preferredIds = refined.suggestedCapabilityIds;
+      preferredIds = refined.suggestedCapabilityIds?.filter(
+        (id) => !ENG_CAP_IDS.has(id) && !id.startsWith("eng_"),
+      );
     }
   }
 
@@ -124,9 +151,20 @@ export async function analyzeCapabilities(
     profile.resourceRoles,
     preferredIds,
     opts?.exposedResources,
+    vertical,
   );
 
-  const suggestedPack = suggestCapabilityPack(profile, suggestions);
+  const suggestedPack =
+    vertical === "engineering"
+      ? {
+          id: "engineering_story_os",
+          title: "Story OS (Engineering)",
+          description:
+            "Pipeline da história: Understand → Refine → Impact → Plan → Execute.",
+          capabilityIds: suggestions.filter((s) => s.available).map((s) => s.id),
+          reason: "Vertical engineering",
+        }
+      : suggestCapabilityPack(profile, suggestions);
 
   return { profile, suggestions, suggestedPack, llmUsed, llmRationale };
 }

@@ -67,7 +67,7 @@ export interface CapabilitySuggestion {
   id: string;
   title: string;
   description: string;
-  domain: BusinessDomain | "any";
+  domain: BusinessDomain | "any" | "engineering";
   kind?: "capability" | "playbook";
   requiredRoles: ResourceRole[];
   bindings: Record<string, string>;
@@ -127,7 +127,8 @@ export interface CapabilityTemplate {
   id: string;
   title: string;
   description: string;
-  domain: BusinessDomain | "any";
+  /** "engineering" = Story OS only — never listed for ERP/Business */
+  domain: BusinessDomain | "any" | "engineering";
   kind?: "capability" | "playbook";
   requiredRoles: ResourceRole[];
   inputSchema: CapabilityInputField[];

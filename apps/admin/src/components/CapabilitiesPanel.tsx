@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { capabilityLabel } from "../lib/capabilityLabels";
 import type {
   BusinessProfile,
   CapabilitiesAnalyzeResult,
@@ -50,10 +51,36 @@ export function CapabilitiesPanel({
   const [previewJson, setPreviewJson] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [enrichments, setEnrichments] = useState<
+    Array<{
+      id: string;
+      kind: string;
+      status: string;
+      payload: Record<string, unknown>;
+      evidence: Record<string, unknown>;
+      confidence: number;
+    }>
+  >([]);
 
   useEffect(() => {
     setSelected(project.activeCapabilities ?? []);
   }, [project.activeCapabilities]);
+
+  async function refreshEnrichments() {
+    try {
+      const { enrichments: rows } = await api.listKnowledgeEnrichments(
+        project.id,
+        { limit: 30 },
+      );
+      setEnrichments(rows);
+    } catch {
+      setEnrichments([]);
+    }
+  }
+
+  useEffect(() => {
+    void refreshEnrichments();
+  }, [project.id]);
 
   useEffect(() => {
     setDraftOverrides(project.roleOverrides ?? {});
@@ -88,10 +115,30 @@ export function CapabilitiesPanel({
       setPickerOpen(true);
       setShowRoles(false);
       setPreviewJson(null);
+      await refreshEnrichments();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha na análise");
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  async function confirmEnrichment(id: string) {
+    try {
+      await api.confirmKnowledgeEnrichment(project.id, { id });
+      await refreshEnrichments();
+      setSuccess("Conhecimento confirmado na Knowledge Layer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao confirmar");
+    }
+  }
+
+  async function rejectEnrichment(id: string) {
+    try {
+      await api.rejectKnowledgeEnrichment(project.id, { id });
+      await refreshEnrichments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao rejeitar");
     }
   }
 
@@ -110,10 +157,12 @@ export function CapabilitiesPanel({
     try {
       const updated = await api.setCapabilities(project.id, selected);
       await onProjectUpdate(updated);
-      const names = (updated.activeCapabilities ?? []).map((id) => `cap_${id}`);
+      const names = (updated.activeCapabilities ?? []).map((id) =>
+        capabilityLabel(id),
+      );
       setSuccess(
         names.length
-          ? `Ativadas no MCP: ${names.join(", ")}`
+          ? `Ativadas no MCP: ${names.join(" · ")}`
           : "Nenhuma capacidade ativa (seleção vazia salva).",
       );
       setPickerOpen(false);
@@ -188,10 +237,14 @@ export function CapabilitiesPanel({
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface-card/50 p-5">
         <p className="text-xs font-medium uppercase tracking-widest text-cyan">
-          Ferramentas de IA
+          Capacidades
         </p>
+        <h2 className="mt-1 text-sm font-semibold text-white">
+          Ainda sem recursos expostos
+        </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Exponha recursos no wizard antes de analisar o negócio e ativar tools.
+          Abra o wizard, exponha as tabelas do ERP e volte aqui para analisar o
+          negócio e ativar ferramentas no MCP.
         </p>
       </div>
     );
@@ -199,23 +252,24 @@ export function CapabilitiesPanel({
 
   return (
     <div className="rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-widest text-cyan">
-            Ferramentas de IA
+            Capacidades
           </p>
-          <h2 className="mt-1 text-sm font-semibold text-white">
-            Capacidades de negócio
+          <h2 className="mt-1 text-base font-semibold text-white">
+            Ferramentas de negócio no MCP
           </h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Papéis genéricos (party, event, ledger…) — você confirma o que entra no MCP.
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-400">
+            O Synapsee sugere tools a partir do schema (pessoas, financeiro,
+            pedidos…). Você escolhe o que o agente pode usar.
           </p>
         </div>
         <button
           type="button"
           disabled={busy}
           onClick={analyze}
-          className="rounded-xl cyan-gradient px-4 py-2 text-xs font-semibold text-surface disabled:opacity-50"
+          className="shrink-0 rounded-xl cyan-gradient px-4 py-2.5 text-xs font-semibold text-surface disabled:opacity-50"
         >
           {analyzing
             ? "Analisando..."
@@ -226,43 +280,73 @@ export function CapabilitiesPanel({
       </div>
 
       {error && (
-        <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400">
+        <p className="mb-4 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400">
           {error}
         </p>
       )}
 
       {success && (
-        <p className="mb-3 rounded-lg border border-green/30 bg-green/10 px-3 py-2 text-xs text-green">
+        <p className="mb-4 rounded-lg border border-green/30 bg-green/10 px-3 py-2 text-xs text-green">
           {success}
         </p>
       )}
 
       {(project.activeCapabilities?.length ?? 0) > 0 && !pickerOpen && (
-        <div className="mb-3">
-          <p className="text-xs text-slate-400">
-            Já ativas no MCP:{" "}
-            <span className="font-mono text-cyan">
-              {project.activeCapabilities.map((id) => `cap_${id}`).join(", ")}
-            </span>
+        <div className="mb-2 rounded-xl border border-border bg-surface px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-slate-300">
+              Ativas no MCP
+              <span className="ml-1.5 font-normal text-slate-500">
+                ({project.activeCapabilities.length})
+              </span>
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (suggestions.length > 0) setPickerOpen(true);
+                else void analyze();
+              }}
+              className="text-xs font-medium text-cyan hover:underline disabled:opacity-50"
+            >
+              Alterar capacidades →
+            </button>
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {project.activeCapabilities.map((id) => (
+              <li
+                key={id}
+                className="rounded-lg border border-cyan/25 bg-cyan/5 px-2.5 py-1.5"
+              >
+                <p className="text-xs font-medium text-slate-100">
+                  {capabilityLabel(id)}
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-slate-500">
+                  cap_{id}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(project.activeCapabilities?.length ?? 0) === 0 && !pickerOpen && (
+        <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
+          <p className="text-sm text-slate-400">
+            Nenhuma capacidade ativa ainda.
           </p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (suggestions.length > 0) setPickerOpen(true);
-              else void analyze();
-            }}
-            className="mt-2 text-xs text-cyan hover:underline disabled:opacity-50"
-          >
-            Alterar capacidades →
-          </button>
+          <p className="mt-1 text-xs text-slate-600">
+            Clique em Analisar negócio para ver sugestões e publicar no MCP.
+          </p>
         </div>
       )}
 
       {profile && pickerOpen && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs">
-          <span className="text-slate-500">Domínio</span>
-          <span className="font-mono text-cyan">{profile.domain}</span>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-xs">
+          <span className="text-slate-500">Domínio detectado</span>
+          <span className="rounded border border-border bg-surface-card px-1.5 py-0.5 font-mono text-cyan">
+            {profile.domain}
+          </span>
           <span className="text-slate-600">·</span>
           <span className="text-slate-500">confiança</span>
           <span className="font-mono text-slate-300">
@@ -271,6 +355,11 @@ export function CapabilitiesPanel({
           {llmUsed && (
             <span className="rounded border border-green/30 bg-green/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-green">
               LLM
+            </span>
+          )}
+          {enrichments.length > 0 && (
+            <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cyan">
+              {enrichments.length} KL
             </span>
           )}
           <button
@@ -398,7 +487,7 @@ export function CapabilitiesPanel({
                     )}
                     {s.kind === "playbook" && (
                       <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cyan">
-                        Playbook
+                        Roteiro
                       </span>
                     )}
                     {!s.available && (
@@ -423,8 +512,8 @@ export function CapabilitiesPanel({
                       className="mt-1 text-[11px] text-cyan hover:underline disabled:opacity-50"
                     >
                       {previewing && previewCapId === s.id
-                        ? "Preview..."
-                        : "Preview"}
+                        ? "Carregando..."
+                        : "Pré-visualizar"}
                     </button>
                   )}
                 </div>
@@ -464,6 +553,63 @@ export function CapabilitiesPanel({
                 ? `Já ativas — salvar de novo (${selected.length})`
                 : `Ativar selecionadas (${selected.length})`}
           </button>
+        </div>
+      )}
+
+      {enrichments.length > 0 && (
+        <div className="mt-5 rounded-xl border border-border bg-surface px-4 py-3">
+          <p className="text-xs font-medium text-slate-300">
+            Knowledge Layer (negócio)
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Domínio e papéis persistidos. Confirmados entram nas missões (ex.:
+            Cobrar inadimplentes).
+          </p>
+          <ul className="mt-3 max-h-56 space-y-2 overflow-auto">
+            {enrichments.map((e) => {
+              const label = String(
+                e.payload.domain ??
+                  e.payload.businessRole ??
+                  e.payload.proposedType ??
+                  e.kind,
+              );
+              const resource = String(
+                e.evidence.resource ?? e.payload.label ?? "",
+              );
+              return (
+                <li
+                  key={e.id}
+                  className="rounded-lg border border-border bg-surface-card px-3 py-2"
+                >
+                  <p className="text-xs text-slate-200">
+                    {e.kind}: {label}
+                    {resource ? ` ← ${resource}` : ""}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {e.status} · {Math.round(e.confidence * 100)}%
+                  </p>
+                  {e.status === "proposed" && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void confirmEnrichment(e.id)}
+                        className="rounded bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-400"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void rejectEnrichment(e.id)}
+                        className="rounded bg-red-500/10 px-2 py-1 text-[11px] text-red-400"
+                      >
+                        Rejeitar
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

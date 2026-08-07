@@ -173,21 +173,41 @@ export const mockApi = {
     name: string;
     engine?: string;
     readOnly?: boolean;
+    vertical?: "business" | "engineering";
   }): Promise<CreateEdgeProjectResult> {
     await delay(500);
+    const vertical = input.vertical === "engineering" ? "engineering" : "business";
     const project: Project = {
       id: crypto.randomUUID().slice(0, 8),
       name: input.name,
-      engine: (input.engine as Project["engine"]) ?? "postgresql",
+      engine: (input.engine as Project["engine"]) ?? (vertical === "engineering" ? "engineering" : "postgresql"),
       host: "(edge)",
       port: 0,
       database: "(local)",
       username: "(edge)",
       readOnly: input.readOnly ?? true,
       exposedResources: [],
-      activeCapabilities: [],
+      activeCapabilities: vertical === "engineering"
+        ? [
+            "eng_understand_story",
+            "eng_refine_story",
+            "eng_impact_analysis",
+            "eng_implementation_plan",
+            "eng_execute_context",
+          ]
+        : [],
       roleOverrides: {},
       connectionMode: "edge",
+      vertical,
+      knowledgeSources:
+        vertical === "engineering"
+          ? [
+              { kind: "github", enabled: true, scopes: [] },
+              { kind: "clickup", enabled: true, scopes: [] },
+              { kind: "confluence", enabled: false, scopes: [] },
+              { kind: "clickup", enabled: true, scopes: [] },
+            ]
+          : [],
       edgeStatus: "pending",
       edgeLastSeen: null,
       edgeVersion: null,

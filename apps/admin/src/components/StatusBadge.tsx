@@ -1,5 +1,6 @@
 export function StatusBadge({
   status,
+  variant = "business",
 }: {
   status:
     | "ok"
@@ -10,6 +11,8 @@ export function StatusBadge({
     | "connecting"
     | "online"
     | "offline";
+  /** engineering = Edge hosts GitHub/ClickUp, not DB */
+  variant?: "business" | "engineering";
 }) {
   const styles: Record<string, string> = {
     ok: "border-green/30 bg-green/10 text-green",
@@ -24,12 +27,16 @@ export function StatusBadge({
   const labels: Record<string, string> = {
     ok: "OK",
     connected: "Conectado",
-    online: "Edge + banco OK",
+    online:
+      variant === "engineering" ? "Edge · fontes OK" : "Edge + banco OK",
     active: "Analisando",
     connecting: "Conectando",
     pending: "Pendente",
     offline: "Edge offline",
-    error: "Banco indisponível",
+    error:
+      variant === "engineering"
+        ? "Projections indisponíveis"
+        : "Banco indisponível",
   };
   return (
     <span

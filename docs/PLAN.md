@@ -251,7 +251,7 @@ IAClient/
 Interfaces futuras:
 - `packages/core/src/capabilities/` — Fase 2
 - `packages/mcp/` — Fase 2
-- `packages/sdk/` — Fase 2
+- `packages/sdk/` — Fase 2 (detalhe em [`PLAN-PLATFORM-SURFACES.md`](./PLAN-PLATFORM-SURFACES.md))
 
 ---
 
@@ -399,7 +399,7 @@ flowchart LR
 | **1.3** | Oracle (+ outros sob demanda) | Enterprise |
 | **2** | MCP + ferramentas de negócio via LLM | Capacidades, não só CRUD |
 | **3** | Agentes especializados | Retenção, financeiro, comercial |
-| **SaaS** | Planos Starter/Pro/Agency | Billing + multi-tenant |
+| **SaaS** | Planos Starter/Pro/Agency | Billing + multi-tenant — ver [PLAN-MULTI-TENANT.md](./PLAN-MULTI-TENANT.md) |
 
 Alinhamento com a landing (form Beta): opções PostgreSQL / SQL Server / MySQL / Oracle / Outro devem mapear para `engine` no `POST /projects`.
 

@@ -1,0 +1,29 @@
+# Synapsee API — production image (monorepo workspace)
+FROM node:22-bookworm-slim AS deps
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY packages/core/package.json packages/core/
+COPY packages/mcp/package.json packages/mcp/
+COPY packages/storage/package.json packages/storage/
+# tsx e types estão em devDependencies — incluir no install da imagem
+RUN npm ci --workspace=@synapse/api --include-workspace-root --include=dev
+
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY packages/core ./packages/core
+COPY packages/mcp ./packages/mcp
+COPY packages/storage ./packages/storage
+COPY apps/api ./apps/api
+RUN mkdir -p /data
+ENV DATA_DIR=/data
+ENV PORT=3000
+EXPOSE 3000
+WORKDIR /app/apps/api
+CMD ["npx", "tsx", "src/main.ts"]

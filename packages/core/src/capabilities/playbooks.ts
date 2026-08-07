@@ -113,10 +113,10 @@ async function listRelated(
 export const playbookTemplates: CapabilityTemplate[] = [
   {
     id: "party_360",
-    title: "Party 360",
+    title: "Visão 360 da pessoa",
     kind: "playbook",
     description:
-      "Use when the agent needs a full picture of one person/org (cliente, aluno, contato): profile + optional risk fields + recent events + ledger items + survey responses. Args: partyId (required).",
+      "Retrato completo de um cliente, aluno ou contato: perfil, risco, eventos recentes, títulos do ledger e respostas de pesquisa. Ideal quando o agente precisa do contexto inteiro. Informe o ID (obrigatório).",
     domain: "any",
     requiredRoles: ["party"],
     inputSchema: [
@@ -247,7 +247,7 @@ export const playbookTemplates: CapabilityTemplate[] = [
     title: "Fila de atenção",
     kind: "playbook",
     description:
-      "Use to answer 'who needs attention now?'. Ranks parties by risk/delay and optionally lack of recent events or overdue ledger. Args: limit (default 20), minDelayDays (default 1), quietDays (default 14).",
+      "Quem precisa de atenção agora? Combina atraso, risco e quietude (sem eventos). Só monta a fila — para cobrança use a missão Cobrar inadimplentes.",
     domain: "any",
     requiredRoles: ["party"],
     inputSchema: [
@@ -407,10 +407,10 @@ export const playbookTemplates: CapabilityTemplate[] = [
   },
   {
     id: "location_health",
-    title: "Saúde do local",
+    title: "Saúde da unidade",
     kind: "playbook",
     description:
-      "Use for unit/branch health: location metrics plus optional risk_snapshot, survey and ledger samples filtered by location when FKs exist. Args: locationId optional (if omitted, returns a sample of locations).",
+      "Saúde de uma unidade/filial: métricas do local e, se existirem, amostras de risco, pesquisas e ledger filtrados pela unidade. Sem ID, retorna uma amostra de unidades.",
     domain: "any",
     requiredRoles: ["location"],
     inputSchema: [

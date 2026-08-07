@@ -4,22 +4,19 @@
 
 Runs inside the customer network. Holds DB credentials. Opens a WebSocket **out** to Synapsee Cloud. Never accepts inbound connections from Cloud.
 
-## Quick start
+## Quick start (Engineering vertical)
+
+Edge sem banco — só projections:
 
 ```bash
-docker run -d --name synapsee-edge \
-  -e SYNAPSEE_TOKEN=syn_edge_... \
-  -e SYNAPSEE_CLOUD_URL=https://api.example.com \
-  -e SYNAPSEE_DB_ENGINE=postgresql \
-  -e SYNAPSEE_DB_HOST=host.docker.internal \
-  -e SYNAPSEE_DB_PORT=5432 \
-  -e SYNAPSEE_DB_NAME=mydb \
-  -e SYNAPSEE_DB_USER=myuser \
-  -e SYNAPSEE_DB_PASSWORD=secret \
-  synapsee/edge:latest
+SYNAPSEE_TOKEN=syn_edge_... \
+SYNAPSEE_CLOUD_URL=http://host.docker.internal:3000 \
+SYNAPSEE_GITHUB_TOKEN=ghp_... \
+SYNAPSEE_CLICKUP_TOKEN=pk_... \
+npm run dev:edge
 ```
 
-Generate token + snippets from Admin → projeto Edge → **Gerar Project Token**.
+Ou Docker com as mesmas envs (sem `SYNAPSEE_DB_*`).
 
 ## Env
 

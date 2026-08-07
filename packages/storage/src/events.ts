@@ -5,7 +5,8 @@ export type ProductEventType =
   | "capability_activated"
   | "role_override"
   | "cap_preview"
-  | "cap_mcp_invoke";
+  | "cap_mcp_invoke"
+  | "mission_run";
 
 export interface ProductEvent {
   id: string;

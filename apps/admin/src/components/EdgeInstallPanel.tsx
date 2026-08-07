@@ -7,10 +7,13 @@ export function EdgeInstallPanel({
   edgeLastSeen,
   edgeVersion,
   edgeResourceCount,
+  edgeLastError,
   online,
   tokenPlaintext,
   onGenerateToken,
   generating,
+  /** business = DB; engineering = GitHub/ClickUp projections */
+  variant = "business",
 }: {
   dockerRun: string;
   dockerCompose: string;
@@ -18,14 +21,17 @@ export function EdgeInstallPanel({
   edgeLastSeen?: string | null;
   edgeVersion?: string | null;
   edgeResourceCount?: number | null;
+  edgeLastError?: string | null;
   online?: boolean;
   tokenPlaintext?: string | null;
   onGenerateToken?: () => void;
   generating?: boolean;
+  variant?: "business" | "engineering";
 }) {
   const [tab, setTab] = useState<"docker" | "compose">("docker");
   const [copied, setCopied] = useState<"cmd" | "token" | null>(null);
   const [showInstall, setShowInstall] = useState(!online);
+  const isEng = variant === "engineering";
 
   async function copy(kind: "cmd" | "token", value: string) {
     await navigator.clipboard.writeText(value);
@@ -34,20 +40,54 @@ export function EdgeInstallPanel({
   }
 
   const snippet = tab === "docker" ? dockerRun : dockerCompose;
-  const statusLabel = online
-    ? "online"
-    : edgeStatus === "offline"
-      ? "offline"
-      : edgeStatus === "error"
-        ? "error"
-        : "pending";
+  // Prefer edgeStatus from API — never treat WS-only as "online" for Business.
+  const statusLabel =
+    edgeStatus === "online"
+      ? "online"
+      : edgeStatus === "offline"
+        ? "offline"
+        : edgeStatus === "error"
+          ? "error"
+          : online
+            ? "online"
+            : "pending";
+
+  const statusBadgeText =
+    statusLabel === "online"
+      ? isEng
+        ? "Fontes via Edge"
+        : "Empresa conectada"
+      : statusLabel === "offline"
+        ? "Edge offline"
+        : statusLabel === "error"
+          ? isEng
+            ? "Projections indisponíveis"
+            : "Banco indisponível"
+          : "Aguardando Edge";
+
+  const statusDetail =
+    statusLabel === "online"
+      ? isEng
+        ? "Edge ativo. Tokens GitHub e ClickUp ficam só no Edge — o Cloud não os armazena."
+        : "Edge ativo e banco respondendo. Credenciais ficam só no Edge."
+      : statusLabel === "error"
+        ? isEng
+          ? "O Edge está no Cloud, mas as projections falharam. Verifique SYNAPSEE_GITHUB_TOKEN e SYNAPSEE_CLICKUP_TOKEN no ambiente do Edge."
+          : edgeLastError
+            ? `Edge no Cloud, mas o banco falhou: ${edgeLastError}`
+            : "O agente Edge está conectado ao Cloud, mas o banco não responde. Verifique se o banco está no ar (mesmo network do Edge) e as variáveis SYNAPSEE_DB_*."
+        : statusLabel === "offline"
+          ? "Edge desconectado. Reinicie o agente na rede do cliente."
+          : isEng
+            ? "Tokens das fontes (GitHub, ClickUp) ficam só no Edge. Rode o comando abaixo no ambiente do cliente."
+            : "Credenciais do banco ficam só no Edge. Rode o comando abaixo no ambiente do cliente.";
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-widest text-slate-500">
-            Status Edge
+            {isEng ? "Edge · Knowledge Sources" : "Status Edge"}
           </p>
           <span
             className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
@@ -60,39 +100,23 @@ export function EdgeInstallPanel({
                     : "border-border bg-surface-card text-slate-500"
             }`}
           >
-            {statusLabel === "online"
-              ? "Empresa conectada"
-              : statusLabel === "offline"
-                ? "Edge offline"
-                : statusLabel === "error"
-                  ? "Banco indisponível"
-                  : "Aguardando Edge"}
+            {statusBadgeText}
           </span>
         </div>
         <p className="mt-2 text-xs text-slate-500">
           {edgeVersion ? `versão ${edgeVersion}` : "sem versão"}
-          {edgeResourceCount != null ? ` · ${edgeResourceCount} tabelas` : ""}
+          {!isEng && edgeResourceCount != null
+            ? ` · ${edgeResourceCount} tabelas`
+            : ""}
           {edgeLastSeen
             ? ` · visto ${new Date(edgeLastSeen).toLocaleString()}`
             : ""}
         </p>
-        {statusLabel === "online" ? (
-          <p className="mt-2 text-xs text-slate-400">
-            Edge ativo e banco respondendo. Credenciais ficam só no Edge.
-          </p>
-        ) : statusLabel === "error" ? (
-          <p className="mt-2 text-xs text-amber-200/80">
-            O agente Edge está conectado ao Cloud, mas o banco não responde. Verifique se
-            o banco está no ar e as variáveis SYNAPSEE_DB_*.
-          </p>
-        ) : statusLabel === "offline" ? (
-          <p className="mt-2 text-xs text-slate-400">
-            Edge desconectado. Reinicie o agente na rede do cliente.
-          </p>
-        ) : (
-          <p className="mt-2 text-xs text-slate-400">
-            Credenciais do banco ficam só no Edge. Rode o comando abaixo na rede do
-            cliente — o Cloud nunca abre porta de entrada.
+        <p className="mt-2 text-xs text-slate-400">{statusDetail}</p>
+        {isEng && statusLabel === "online" && (
+          <p className="mt-2 text-[11px] text-slate-500">
+            O Edge guarda os tokens GitHub/ClickUp e sincroniza fatos para a
+            Knowledge Layer.
           </p>
         )}
       </div>
@@ -174,6 +198,16 @@ export function EdgeInstallPanel({
               </button>
             )}
           </div>
+
+          {isEng && (
+            <p className="text-[11px] text-slate-500">
+              No Edge, configure{" "}
+              <code className="text-slate-400">SYNAPSEE_GITHUB_TOKEN</code> e{" "}
+              <code className="text-slate-400">SYNAPSEE_CLICKUP_TOKEN</code> (e
+              opcionalmente repos/spaces). Sem{" "}
+              <code className="text-slate-400">SYNAPSEE_DB_*</code>.
+            </p>
+          )}
 
           <div className="relative">
             <pre className="overflow-x-auto rounded-xl border border-border bg-surface p-3 font-mono text-[11px] leading-relaxed text-slate-300">

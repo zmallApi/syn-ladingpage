@@ -3,6 +3,10 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { ConnectionConfig } from "@synapse/core";
+import {
+  ENGINEERING_STORY_OS_CAPABILITIES,
+  normalizeCapabilityIds,
+} from "@synapse/core";
 import { decrypt, encrypt } from "./crypto.js";
 import {
   computeProductMetrics,
@@ -12,12 +16,39 @@ import {
   type ProductEventType,
   type ProductMetrics,
 } from "./events.js";
+import { KnowledgeLayerStore } from "./knowledge.js";
+import { MissionStore } from "./missions.js";
+import { LEGACY_TENANT_ID, TenantStore } from "./tenants.js";
+
+/** Legacy Discovery-only eng projects → full Story OS pack. */
+function ensureStoryOsCapabilities(
+  vertical: string | undefined,
+  caps: string[],
+): { caps: string[]; upgraded: boolean } {
+  const normalized = normalizeCapabilityIds(caps);
+  if (vertical !== "engineering") return { caps: normalized, upgraded: false };
+
+  const missing = ENGINEERING_STORY_OS_CAPABILITIES.filter(
+    (id) => !normalized.includes(id),
+  );
+  if (missing.length === 0) return { caps: normalized, upgraded: false };
+
+  return {
+    caps: normalizeCapabilityIds([
+      ...normalized,
+      ...ENGINEERING_STORY_OS_CAPABILITIES,
+    ]),
+    upgraded: true,
+  };
+}
 
 export type ConnectionMode = "cloud" | "edge";
 export type EdgeStatus = "pending" | "online" | "offline" | "error";
+export type ProjectVertical = "business" | "engineering";
 
 export interface ProjectRecord {
   id: string;
+  tenantId: string;
   name: string;
   engine: string;
   host: string;
@@ -32,15 +63,21 @@ export interface ProjectRecord {
   businessProfileJson: string | null;
   roleOverridesJson: string;
   connectionMode: ConnectionMode;
+  vertical: ProjectVertical;
+  knowledgeSourcesJson: string;
   edgeStatus: EdgeStatus;
   edgeLastSeen: string | null;
   edgeVersion: string | null;
   edgeResourceCount: number | null;
+  edgeLastError: string | null;
+  /** JSON: { provider, model?, baseUrl?, apiKey? } — apiKey encrypted at rest when set */
+  llmConfigJson: string | null;
   status: string;
   createdAt: string;
 }
 
 export interface CreateProjectData {
+  tenantId: string;
   name: string;
   engine: string;
   host: string;
@@ -54,9 +91,18 @@ export interface CreateProjectData {
 }
 
 export interface CreateEdgeProjectData {
+  tenantId: string;
   name: string;
   engine?: string;
   readOnly?: boolean;
+  vertical?: ProjectVertical;
+}
+
+export interface KnowledgeSourceConfig {
+  kind: "github" | "clickup" | "confluence";
+  enabled: boolean;
+  /** Non-secret scope selection (repos, space ids) */
+  scopes?: string[];
 }
 
 export interface EdgeTokenRecord {
@@ -76,8 +122,18 @@ export interface CreatedEdgeToken {
   createdAt: string;
 }
 
+export interface PublicLlmConfig {
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  hasApiKey: boolean;
+  /** false = LLM desligado neste projeto (ignora env). */
+  enabled: boolean;
+}
+
 export interface PublicProject {
   id: string;
+  tenantId: string;
   name: string;
   engine: string;
   host: string;
@@ -89,10 +145,14 @@ export interface PublicProject {
   activeCapabilities: string[];
   roleOverrides: Record<string, string>;
   connectionMode: ConnectionMode;
+  vertical: ProjectVertical;
+  knowledgeSources: KnowledgeSourceConfig[];
   edgeStatus: EdgeStatus;
   edgeLastSeen: string | null;
   edgeVersion: string | null;
   edgeResourceCount: number | null;
+  edgeLastError: string | null;
+  llmConfig: PublicLlmConfig;
   status: "connected" | "error" | "pending" | "online" | "offline";
   createdAt: string;
 }
@@ -128,9 +188,34 @@ function parseJsonObject(raw: string | null | undefined): Record<string, string>
   }
 }
 
+function parseKnowledgeSources(raw: string | null | undefined): KnowledgeSourceConfig[] {
+  try {
+    const v = JSON.parse(raw ?? "[]") as unknown;
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((x) => x && typeof x === "object")
+      .map((x) => {
+        const o = x as Record<string, unknown>;
+        const kind = o.kind === "clickup" ? "clickup" : "github";
+        return {
+          kind,
+          enabled: o.enabled !== false,
+          scopes: Array.isArray(o.scopes)
+            ? o.scopes.map(String).filter(Boolean)
+            : undefined,
+        } satisfies KnowledgeSourceConfig;
+      });
+  } catch {
+    return [];
+  }
+}
+
 export class ProjectStore {
   private db: Database.Database;
   private encryptionKey: string;
+  readonly knowledge: KnowledgeLayerStore;
+  readonly missions: MissionStore;
+  readonly tenants: TenantStore;
 
   constructor(dbPath: string, encryptionKey: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -138,6 +223,10 @@ export class ProjectStore {
     this.encryptionKey = encryptionKey;
     this.db.pragma("journal_mode = WAL");
     this.migrate();
+    this.tenants = new TenantStore(this.db);
+    this.knowledge = new KnowledgeLayerStore(this.db);
+    this.missions = new MissionStore(this.db);
+    this.backfillProjectTenants();
   }
 
   private migrate() {
@@ -198,6 +287,29 @@ export class ProjectStore {
     if (!names.has("edge_resource_count")) {
       this.db.exec(`ALTER TABLE projects ADD COLUMN edge_resource_count INTEGER`);
     }
+    if (!names.has("edge_last_error")) {
+      this.db.exec(`ALTER TABLE projects ADD COLUMN edge_last_error TEXT`);
+    }
+    if (!names.has("vertical")) {
+      this.db.exec(
+        `ALTER TABLE projects ADD COLUMN vertical TEXT NOT NULL DEFAULT 'business'`,
+      );
+    }
+    if (!names.has("knowledge_sources_json")) {
+      this.db.exec(
+        `ALTER TABLE projects ADD COLUMN knowledge_sources_json TEXT NOT NULL DEFAULT '[]'`,
+      );
+    }
+    if (!names.has("llm_config_json")) {
+      this.db.exec(`ALTER TABLE projects ADD COLUMN llm_config_json TEXT`);
+    }
+    if (!names.has("tenant_id")) {
+      this.db.exec(`ALTER TABLE projects ADD COLUMN tenant_id TEXT`);
+    }
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
+    `);
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS edge_tokens (
@@ -215,9 +327,19 @@ export class ProjectStore {
     migrateProductEvents(this.db);
   }
 
+  /** Assign legacy tenant to any project missing tenant_id. */
+  private backfillProjectTenants() {
+    this.db
+      .prepare(
+        `UPDATE projects SET tenant_id = ? WHERE tenant_id IS NULL OR tenant_id = ''`,
+      )
+      .run(LEGACY_TENANT_ID);
+  }
+
   private rowToRecord(row: Record<string, unknown>): ProjectRecord {
     return {
       id: String(row.id),
+      tenantId: String(row.tenant_id ?? LEGACY_TENANT_ID),
       name: String(row.name),
       engine: String(row.engine),
       host: String(row.host),
@@ -233,14 +355,105 @@ export class ProjectStore {
         row.business_profile_json == null ? null : String(row.business_profile_json),
       roleOverridesJson: String(row.role_overrides_json ?? "{}"),
       connectionMode: (row.connection_mode === "edge" ? "edge" : "cloud") as ConnectionMode,
+      vertical:
+        row.vertical === "engineering" ? "engineering" : ("business" as ProjectVertical),
+      knowledgeSourcesJson: String(row.knowledge_sources_json ?? "[]"),
       edgeStatus: (String(row.edge_status ?? "pending") as EdgeStatus) || "pending",
       edgeLastSeen: row.edge_last_seen == null ? null : String(row.edge_last_seen),
       edgeVersion: row.edge_version == null ? null : String(row.edge_version),
       edgeResourceCount:
         row.edge_resource_count == null ? null : Number(row.edge_resource_count),
+      edgeLastError: row.edge_last_error == null ? null : String(row.edge_last_error),
+      llmConfigJson:
+        row.llm_config_json == null ? null : String(row.llm_config_json),
       status: String(row.status),
       createdAt: String(row.created_at),
     };
+  }
+
+  getLlmConfig(record: ProjectRecord): {
+    provider?: string;
+    model?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    enabled?: boolean;
+  } {
+    if (!record.llmConfigJson) return {};
+    try {
+      const v = JSON.parse(record.llmConfigJson) as Record<string, unknown>;
+      const apiKeyEnc =
+        typeof v.apiKeyEncrypted === "string" ? v.apiKeyEncrypted : null;
+      let apiKey: string | undefined;
+      if (apiKeyEnc) {
+        try {
+          apiKey = decrypt(apiKeyEnc, this.encryptionKey);
+        } catch {
+          apiKey = undefined;
+        }
+      }
+      const provider = typeof v.provider === "string" ? v.provider : undefined;
+      const enabled =
+        v.enabled === false || provider === "none" ? false : v.enabled === true ? true : undefined;
+      return {
+        provider,
+        model: typeof v.model === "string" ? v.model : undefined,
+        baseUrl: typeof v.baseUrl === "string" ? v.baseUrl : undefined,
+        apiKey,
+        enabled,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  setLlmConfig(
+    id: string,
+    patch: {
+      provider?: string;
+      model?: string | null;
+      baseUrl?: string | null;
+      apiKey?: string | null;
+      clearApiKey?: boolean;
+      enabled?: boolean;
+    },
+  ): ProjectRecord | undefined {
+    const cur = this.get(id);
+    if (!cur) return undefined;
+    const prev = this.getLlmConfig(cur);
+    const disconnect =
+      patch.enabled === false ||
+      patch.provider === "none" ||
+      patch.provider === "disabled";
+    let nextKey = prev.apiKey;
+    if (patch.clearApiKey || disconnect) nextKey = undefined;
+    else if (patch.apiKey != null && patch.apiKey !== "") nextKey = patch.apiKey;
+
+    // Connect only with a project-stored API key — empty "Salvar" must not enable LLM.
+    const wantsEnable = !disconnect && patch.enabled !== false;
+    const nextEnabled = Boolean(wantsEnable && nextKey);
+    const nextProvider = nextEnabled
+      ? patch.provider ?? prev.provider ?? "openai"
+      : "none";
+
+    const stored: Record<string, unknown> = {
+      provider: nextEnabled ? nextProvider : "none",
+      enabled: nextEnabled,
+      model:
+        !nextEnabled || patch.model === null
+          ? undefined
+          : (patch.model ?? prev.model) || undefined,
+      baseUrl:
+        !nextEnabled || patch.baseUrl === null
+          ? undefined
+          : (patch.baseUrl ?? prev.baseUrl) || undefined,
+    };
+    if (nextKey && nextEnabled) {
+      stored.apiKeyEncrypted = encrypt(nextKey, this.encryptionKey);
+    }
+    this.db
+      .prepare(`UPDATE projects SET llm_config_json = ? WHERE id = ?`)
+      .run(JSON.stringify(stored), id);
+    return this.get(id);
   }
 
   create(data: CreateProjectData): ProjectRecord {
@@ -248,18 +461,20 @@ export class ProjectStore {
     const createdAt = new Date().toISOString();
     const mode: ConnectionMode = data.connectionMode === "edge" ? "edge" : "cloud";
     const passwordEncrypted = encrypt(data.password, this.encryptionKey);
+    const tenantId = data.tenantId || LEGACY_TENANT_ID;
 
     this.db
       .prepare(
         `INSERT INTO projects (
-          id, name, engine, host, port, database_name, username,
+          id, tenant_id, name, engine, host, port, database_name, username,
           password_encrypted, options_json, read_only, exposed_resources_json,
           active_capabilities_json, business_profile_json, connection_mode,
           edge_status, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', NULL, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', NULL, ?, ?, ?, ?)`,
       )
       .run(
         id,
+        tenantId,
         data.name,
         data.engine,
         data.host,
@@ -281,20 +496,60 @@ export class ProjectStore {
   createEdgeProject(data: CreateEdgeProjectData): ProjectRecord {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
-    const engine = data.engine?.trim() || "postgresql";
+    const tenantId = data.tenantId || LEGACY_TENANT_ID;
+    const vertical: ProjectVertical =
+      data.vertical === "engineering" ? "engineering" : "business";
+    const engine =
+      data.engine?.trim() ||
+      (vertical === "engineering" ? "engineering" : "postgresql");
+    const defaultSources =
+      vertical === "engineering"
+        ? JSON.stringify([
+            { kind: "github", enabled: true, scopes: [] },
+            { kind: "clickup", enabled: true, scopes: [] },
+            { kind: "confluence", enabled: false, scopes: [] },
+          ])
+        : "[]";
 
     this.db
       .prepare(
         `INSERT INTO projects (
-          id, name, engine, host, port, database_name, username,
+          id, tenant_id, name, engine, host, port, database_name, username,
           password_encrypted, options_json, read_only, exposed_resources_json,
           active_capabilities_json, business_profile_json, connection_mode,
+          vertical, knowledge_sources_json,
           edge_status, status, created_at
-        ) VALUES (?, ?, ?, '', 0, '', '', '', NULL, ?, '[]', '[]', NULL, 'edge', 'pending', 'pending', ?)`,
+        ) VALUES (?, ?, ?, ?, '', 0, '', '', '', NULL, ?, '[]', ?, NULL, 'edge', ?, ?, 'pending', 'pending', ?)`,
       )
-      .run(id, data.name, engine, data.readOnly === false ? 0 : 1, createdAt);
+      .run(
+        id,
+        tenantId,
+        data.name,
+        engine,
+        data.readOnly === false ? 0 : 1,
+        vertical === "engineering"
+          ? JSON.stringify([...ENGINEERING_STORY_OS_CAPABILITIES])
+          : "[]",
+        vertical,
+        defaultSources,
+        createdAt,
+      );
 
     return this.get(id)!;
+  }
+
+  setKnowledgeSources(
+    id: string,
+    sources: KnowledgeSourceConfig[],
+  ): ProjectRecord | undefined {
+    this.db
+      .prepare(`UPDATE projects SET knowledge_sources_json = ? WHERE id = ?`)
+      .run(JSON.stringify(sources), id);
+    return this.get(id);
+  }
+
+  getKnowledgeSources(record: ProjectRecord): KnowledgeSourceConfig[] {
+    return parseKnowledgeSources(record.knowledgeSourcesJson);
   }
 
   createEdgeToken(projectId: string): CreatedEdgeToken | undefined {
@@ -370,6 +625,10 @@ export class ProjectStore {
       version?: string | null;
       engine?: string | null;
       resourceCount?: number | null;
+      /** When true, wipe resource count (e.g. DB probe failed). */
+      clearResourceCount?: boolean;
+      /** null clears; undefined keeps previous */
+      lastError?: string | null;
     },
   ): ProjectRecord | undefined {
     const now = new Date().toISOString();
@@ -377,13 +636,27 @@ export class ProjectStore {
     if (!project) return undefined;
 
     const engine = data.engine?.trim() || project.engine;
+    const clearCount = Boolean(data.clearResourceCount) || data.status === "error";
+    const lastError =
+      data.lastError === undefined
+        ? project.edgeLastError
+        : data.lastError === null || data.lastError === ""
+          ? null
+          : data.lastError;
+    const resourceCount = clearCount
+      ? null
+      : data.resourceCount !== undefined && data.resourceCount !== null
+        ? data.resourceCount
+        : project.edgeResourceCount;
+
     this.db
       .prepare(
         `UPDATE projects SET
           edge_status = ?,
           edge_last_seen = ?,
           edge_version = COALESCE(?, edge_version),
-          edge_resource_count = COALESCE(?, edge_resource_count),
+          edge_resource_count = ?,
+          edge_last_error = ?,
           engine = ?,
           status = ?
          WHERE id = ?`,
@@ -392,7 +665,8 @@ export class ProjectStore {
         data.status,
         now,
         data.version ?? null,
-        data.resourceCount ?? null,
+        resourceCount,
+        data.status === "online" ? null : lastError,
         engine,
         data.status === "online" ? "online" : data.status,
         projectId,
@@ -408,13 +682,54 @@ export class ProjectStore {
       .run(projectId);
   }
 
+  /** Cloud (direct DB) presence — not Edge. Reuses edge_last_error for the message. */
+  setCloudStatus(
+    projectId: string,
+    status: "connected" | "error" | "pending",
+    lastError?: string | null,
+  ): ProjectRecord | undefined {
+    const project = this.get(projectId);
+    if (!project || project.connectionMode === "edge") return undefined;
+    const errorMsg =
+      status === "connected"
+        ? null
+        : (lastError && lastError.trim()) ||
+          project.edgeLastError ||
+          "Banco indisponível";
+    this.db
+      .prepare(
+        `UPDATE projects SET
+          status = ?,
+          edge_last_error = ?
+         WHERE id = ? AND connection_mode = 'cloud'`,
+      )
+      .run(status, errorMsg, projectId);
+    return this.get(projectId);
+  }
+
   list(): ProjectRecord[] {
     const rows = this.db.prepare(`SELECT * FROM projects ORDER BY created_at DESC`).all();
     return rows.map((r) => this.rowToRecord(r as Record<string, unknown>));
   }
 
+  listForTenant(tenantId: string): ProjectRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM projects WHERE tenant_id = ? ORDER BY created_at DESC`,
+      )
+      .all(tenantId);
+    return rows.map((r) => this.rowToRecord(r as Record<string, unknown>));
+  }
+
   get(id: string): ProjectRecord | undefined {
     const row = this.db.prepare(`SELECT * FROM projects WHERE id = ?`).get(id);
+    return row ? this.rowToRecord(row as Record<string, unknown>) : undefined;
+  }
+
+  getInTenant(id: string, tenantId: string): ProjectRecord | undefined {
+    const row = this.db
+      .prepare(`SELECT * FROM projects WHERE id = ? AND tenant_id = ?`)
+      .get(id, tenantId);
     return row ? this.rowToRecord(row as Record<string, unknown>) : undefined;
   }
 
@@ -476,6 +791,7 @@ export class ProjectStore {
 
     return {
       id: record.id,
+      tenantId: record.tenantId,
       name: record.name,
       engine: record.engine,
       host: record.connectionMode === "edge" ? "(edge)" : record.host,
@@ -484,20 +800,55 @@ export class ProjectStore {
       username: record.connectionMode === "edge" ? "(edge)" : record.username,
       readOnly: record.readOnly === 1,
       exposedResources: parseJsonArray(record.exposedResourcesJson),
-      activeCapabilities: parseJsonArray(record.activeCapabilitiesJson),
+      activeCapabilities: this.getActiveCapabilities(record),
       roleOverrides: parseJsonObject(record.roleOverridesJson),
       connectionMode: record.connectionMode,
+      vertical: record.vertical,
+      knowledgeSources: parseKnowledgeSources(record.knowledgeSourcesJson),
       edgeStatus: record.edgeStatus,
       edgeLastSeen: record.edgeLastSeen,
       edgeVersion: record.edgeVersion,
       edgeResourceCount: record.edgeResourceCount,
+      edgeLastError: record.edgeLastError,
+      llmConfig: (() => {
+        const cfg = this.getLlmConfig(record);
+        const hasProjectKey = Boolean(cfg.apiKey);
+        const enabled =
+          cfg.enabled === true &&
+          hasProjectKey &&
+          String(cfg.provider ?? "").toLowerCase() !== "none";
+        if (!enabled) {
+          return {
+            provider: "none",
+            hasApiKey: false,
+            enabled: false,
+          };
+        }
+        return {
+          provider: cfg.provider ?? "openai",
+          model: cfg.model,
+          baseUrl: cfg.baseUrl,
+          hasApiKey: true,
+          enabled: true,
+        };
+      })(),
       status,
       createdAt: record.createdAt,
     };
   }
 
   getActiveCapabilities(record: ProjectRecord): string[] {
-    return parseJsonArray(record.activeCapabilitiesJson);
+    const { caps, upgraded } = ensureStoryOsCapabilities(
+      record.vertical,
+      parseJsonArray(record.activeCapabilitiesJson),
+    );
+    if (upgraded) {
+      this.db
+        .prepare(`UPDATE projects SET active_capabilities_json = ? WHERE id = ?`)
+        .run(JSON.stringify(caps), record.id);
+      record.activeCapabilitiesJson = JSON.stringify(caps);
+    }
+    return caps;
   }
 
   recordEvent(

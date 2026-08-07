@@ -35,11 +35,28 @@ export interface SchemaSnapshot {
 
 export type ConnectionMode = "cloud" | "edge";
 export type EdgeStatus = "pending" | "online" | "offline" | "error";
+export type ProjectVertical = "business" | "engineering";
+
+export interface KnowledgeSourceConfig {
+  kind: "github" | "clickup" | "confluence";
+  enabled: boolean;
+  scopes?: string[];
+}
+
+export interface PublicLlmConfig {
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  hasApiKey: boolean;
+  /** false = LLM desligado neste projeto (ignora env do servidor). */
+  enabled?: boolean;
+}
 
 export interface Project {
   id: string;
+  tenantId?: string;
   name: string;
-  engine: DatabaseEngine;
+  engine: DatabaseEngine | string;
   host: string;
   port: number;
   database: string;
@@ -49,10 +66,14 @@ export interface Project {
   activeCapabilities: string[];
   roleOverrides?: Record<string, string>;
   connectionMode?: ConnectionMode;
+  vertical?: ProjectVertical;
+  knowledgeSources?: KnowledgeSourceConfig[];
   edgeStatus?: EdgeStatus;
   edgeLastSeen?: string | null;
   edgeVersion?: string | null;
   edgeResourceCount?: number | null;
+  edgeLastError?: string | null;
+  llmConfig?: PublicLlmConfig;
   status: "connected" | "error" | "pending" | "online" | "offline";
   createdAt: string;
 }

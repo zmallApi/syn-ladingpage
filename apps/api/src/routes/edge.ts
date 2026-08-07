@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import websocket from "@fastify/websocket";
 import type { EdgeGateway } from "../edge/gateway.js";
+import { resolveBusinessAwareStatus } from "../edge/status.js";
 
 const EDGE_VERSION = "0.1.0";
 
@@ -69,6 +70,7 @@ export const edgeRoutes: FastifyPluginAsync = async (app) => {
           projectId = resolved.projectId;
           app.edge.attachSocket(projectId, socket);
           // Agent is connected; DB health comes from heartbeats (probe).
+          // Never mark Business as online here — only after dbOk heartbeat.
           app.store.setEdgePresence(projectId, {
             status: "pending",
             version: typeof msg.version === "string" ? msg.version : EDGE_VERSION,
@@ -78,8 +80,10 @@ export const edgeRoutes: FastifyPluginAsync = async (app) => {
             type: "registered",
             projectId,
             cloudVersion: EDGE_VERSION,
+            vertical: project.vertical,
+            requireDb: project.vertical !== "engineering",
           });
-          req.log.info({ projectId }, "Edge registered");
+          req.log.info({ projectId, vertical: project.vertical }, "Edge registered");
           return;
         }
 
@@ -88,15 +92,16 @@ export const edgeRoutes: FastifyPluginAsync = async (app) => {
         // After register, gateway's listener also fires — Fastify may stack handlers.
         // We forward heartbeats if gateway didn't get them (duplicate ok).
         if (type === "heartbeat" && projectId) {
-          const raw = String(msg.status ?? "online");
-          const status =
-            raw === "error" ? "error" : raw === "offline" ? "offline" : "online";
+          const project = app.store.get(projectId);
           app.store.setEdgePresence(projectId, {
-            status,
+            status: resolveBusinessAwareStatus(project?.vertical, msg),
             version: typeof msg.version === "string" ? msg.version : undefined,
             engine: typeof msg.engine === "string" ? msg.engine : undefined,
             resourceCount:
               typeof msg.resourceCount === "number" ? msg.resourceCount : undefined,
+            clearResourceCount: msg.dbOk === false || msg.status === "error",
+            lastError:
+              typeof msg.dbError === "string" ? msg.dbError : undefined,
           });
         }
       });

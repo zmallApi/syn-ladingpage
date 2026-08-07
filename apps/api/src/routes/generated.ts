@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { loadAccessibleProject } from "../auth/access.js";
 import type { SchemaSnapshot } from "@synapse/core";
 import {
   assertSafeIdentifier,
@@ -17,8 +18,8 @@ export const generatedRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { projectId: string } }>(
     "/p/:projectId/openapi.json",
     async (req, reply) => {
-      const record = app.store.get(req.params.projectId);
-      if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+      const record = loadAccessibleProject(app.store, req.auth, req.params.projectId, reply);
+      if (!record) return;
       try {
         const publicProject = app.store.toPublic(record);
         const snap = await ensureProjectSchema(app.store, app.edge, record);
@@ -37,8 +38,8 @@ export const generatedRoutes: FastifyPluginAsync = async (app) => {
     Params: { projectId: string; resource: string };
     Querystring: { limit?: string; offset?: string };
   }>("/p/:projectId/:resource", async (req, reply) => {
-    const record = app.store.get(req.params.projectId);
-    if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+    const record = loadAccessibleProject(app.store, req.auth, req.params.projectId, reply);
+    if (!record) return;
 
     try {
       assertSafeIdentifier(req.params.resource);
@@ -72,8 +73,8 @@ export const generatedRoutes: FastifyPluginAsync = async (app) => {
   app.get<{
     Params: { projectId: string; resource: string; id: string };
   }>("/p/:projectId/:resource/:id", async (req, reply) => {
-    const record = app.store.get(req.params.projectId);
-    if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+    const record = loadAccessibleProject(app.store, req.auth, req.params.projectId, reply);
+    if (!record) return;
 
     const publicProject = app.store.toPublic(record);
     if (!publicProject.exposedResources.includes(req.params.resource)) {
@@ -106,8 +107,8 @@ export const generatedRoutes: FastifyPluginAsync = async (app) => {
   app.post<{
     Params: { projectId: string; resource: string };
   }>("/p/:projectId/:resource", async (req, reply) => {
-    const record = app.store.get(req.params.projectId);
-    if (!record) return reply.code(404).send({ error: "Projeto não encontrado" });
+    const record = loadAccessibleProject(app.store, req.auth, req.params.projectId, reply);
+    if (!record) return;
 
     const publicProject = app.store.toPublic(record);
     if (!publicProject.exposedResources.includes(req.params.resource)) {

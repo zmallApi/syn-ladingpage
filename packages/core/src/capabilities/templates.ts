@@ -6,6 +6,7 @@ import {
 import { findField, findResourceByRole } from "./heuristics.js";
 import { requireExposedResource } from "./helpers.js";
 import { playbookTemplates } from "./playbooks.js";
+import { engineeringCapabilityTemplates } from "./engineering.js";
 import type {
   CapabilityTemplate,
   ResourceRoleBinding,
@@ -55,9 +56,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   // --- generic catalog (Phase B) ---
   {
     id: "search_parties",
-    title: "Buscar partes",
+    title: "Buscar pessoas / organizações",
     description:
-      "Use to find a person/org by name, email or code (cliente/aluno/contato). Args: query (required), limit. Returns matching parties.",
+      "Busca clientes, alunos ou contatos por nome, e-mail ou código. Informe o texto da busca.",
     domain: "any",
     kind: "capability",
     requiredRoles: ["party"],
@@ -104,9 +105,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "party_summary",
-    title: "Resumo da parte",
+    title: "Resumo da pessoa",
     description:
-      "Use for a quick profile of one party: risk fields if present and related transactions if pedidos exist. Prefer party_360 for a fuller composite view. Args: partyId.",
+      "Visão rápida de um cliente/aluno/contato: dados do perfil, sinais de risco e pedidos relacionados (se existirem). Para visão completa, use Visão 360. Informe o ID (partyId).",
     domain: "any",
     kind: "capability",
     requiredRoles: ["party"],
@@ -192,9 +193,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "list_at_risk",
-    title: "Partes em risco",
+    title: "Análise de risco",
     description:
-      "Use to list parties with risk classification/trend, low score or payment delay. For a ranked queue combining events/ledger, prefer attention_queue. Args: limit, minDelayDays.",
+      "Lista pessoas com atraso, classificação de risco ou score elevado. Só lê dados — não dispara cobrança. Para cobrar inadimplentes, use a missão correspondente.",
     domain: "any",
     kind: "capability",
     requiredRoles: ["party"],
@@ -256,8 +257,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "recent_events",
-    title: "Eventos recentes da parte",
-    description: "Lista eventos (check-ins, visitas, etc.) ligados a uma parte.",
+    title: "Eventos recentes",
+    description:
+      "Lista check-ins, visitas ou outros eventos recentes ligados a uma pessoa. Informe o ID.",
     domain: "any",
     requiredRoles: ["party", "event"],
     inputSchema: [
@@ -304,26 +306,92 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "overdue_ledger",
-    title: "Ledger em atraso",
-    description: "Lista cobranças/financeiro com status em atraso ou pendente.",
+    title: "Inadimplência / cobrança",
+    description:
+      "Lista títulos ou lançamentos em atraso ou pendentes. Só consulta — para preparar cobrança use a missão Cobrar inadimplentes.",
     domain: "any",
     requiredRoles: ["ledger"],
     inputSchema: [
       { name: "limit", type: "number", description: "Máximo (default 40)" },
     ],
     bind: (schema, roles) => {
-      const ledger = findResourceByRole(roles, "ledger");
+      let ledger = findResourceByRole(roles, "ledger");
+      if (!ledger) {
+        const byName = schema.resources.find((r) =>
+          /financeiro|cobranc|titulo|recebivel|fatura|invoice|ledger|parcela/i.test(
+            r.name,
+          ),
+        );
+        ledger = byName?.name;
+      }
       if (!ledger) return null;
       const meta = schema.resources.find((r) => r.name === ledger);
       if (!meta) return null;
-      const statusField = findField(meta, ["status", "situacao"]);
-      const delayField = findField(meta, ["dias_atraso", "atraso"]);
-      if (!statusField && !delayField) return null;
+      const statusField =
+        findField(meta, [
+          "status",
+          "situacao",
+          "estado",
+          "payment_status",
+          "situacao_pagamento",
+        ]) ?? "";
+      const delayField =
+        findField(meta, [
+          "dias_atraso",
+          "atraso",
+          "days_overdue",
+          "dias_vencido",
+          "dias_em_atraso",
+        ]) ?? "";
+      const dueField =
+        findField(meta, [
+          "vencimento",
+          "data_vencimento",
+          "due_date",
+          "dt_vencimento",
+          "data_vence",
+        ]) ?? "";
+      const amountField =
+        findField(meta, [
+          "valor_cobrado",
+          "valor_titulo",
+          "valor",
+          "amount",
+          "vl_cobrado",
+        ]) ?? "";
+      const paidField =
+        findField(meta, ["valor_pago", "pago", "paid", "vl_pago"]) ?? "";
+
+      const hasSignal =
+        Boolean(statusField) ||
+        Boolean(delayField) ||
+        Boolean(dueField) ||
+        (Boolean(amountField) && Boolean(paidField));
+      const nameLooksLikeLedger =
+        /financeiro|cobranc|titulo|recebivel|fatura|invoice|ledger|parcela/i.test(
+          ledger,
+        );
+      if (!hasSignal && !nameLooksLikeLedger) return null;
+
+      const party = findResourceByRole(roles, "party");
+      const partyMeta = party
+        ? schema.resources.find((r) => r.name === party)
+        : undefined;
+
       return {
         ledger,
-        statusField: statusField ?? "",
-        delayField: delayField ?? "",
+        statusField,
+        delayField,
+        dueField,
+        amountField,
+        paidField,
         partyFk: partyFkCandidates(meta) ?? "",
+        party: party ?? "",
+        partyPk: partyMeta?.primaryKey?.[0] ?? "id",
+        partyNameField: partyMeta
+          ? findField(partyMeta, ["nome", "name", "razao_social", "full_name"]) ??
+            ""
+          : "",
       };
     },
     async run(ctx, args) {
@@ -337,20 +405,93 @@ export const capabilityTemplates: CapabilityTemplate[] = [
         "open",
         "overdue",
         "vencido",
+        "vencida",
         "inadimplente",
+        "em atraso",
+        "aberto",
+        "aberta",
       ]);
+      const now = Date.now();
       const overdue = rows.filter((r) => {
         const status = String(r[ctx.bindings.statusField] ?? "").toLowerCase();
+        if (status && open.has(status)) return true;
         const delay = Number(r[ctx.bindings.delayField] ?? 0);
-        return open.has(status) || delay > 0;
+        if (!Number.isNaN(delay) && delay > 0) return true;
+        const dueRaw = ctx.bindings.dueField
+          ? r[ctx.bindings.dueField]
+          : undefined;
+        if (dueRaw != null && String(dueRaw).trim()) {
+          const due = new Date(String(dueRaw)).getTime();
+          if (!Number.isNaN(due) && due < now) {
+            const paid = Number(r[ctx.bindings.paidField] ?? NaN);
+            const amount = Number(r[ctx.bindings.amountField] ?? NaN);
+            if (!Number.isNaN(paid) && !Number.isNaN(amount) && paid >= amount) {
+              return false;
+            }
+            return true;
+          }
+        }
+        if (ctx.bindings.amountField && ctx.bindings.paidField) {
+          const amount = Number(r[ctx.bindings.amountField] ?? NaN);
+          const paid = Number(r[ctx.bindings.paidField] ?? 0);
+          if (!Number.isNaN(amount) && paid < amount) return true;
+        }
+        return false;
       });
-      return { count: overdue.length, items: overdue.slice(0, limit) };
+
+      const nameByParty = new Map<string, string>();
+      if (ctx.bindings.party && ctx.bindings.partyNameField) {
+        try {
+          const partyRes = requireExposedResource(ctx, ctx.bindings.party);
+          const parties = asRows(
+            await ctx.list(partyRes, { limit: 200, offset: 0 }),
+          );
+          const pk = ctx.bindings.partyPk || "id";
+          for (const p of parties) {
+            const id = String(p[pk] ?? "");
+            const nome = String(p[ctx.bindings.partyNameField] ?? "");
+            if (id && nome) nameByParty.set(id, nome);
+          }
+        } catch {
+          /* party not exposed — keep ids only */
+        }
+      }
+
+      const items = (
+        overdue.length > 0
+          ? overdue
+          : !ctx.bindings.statusField &&
+              !ctx.bindings.delayField &&
+              !ctx.bindings.dueField
+            ? rows
+            : []
+      )
+        .slice(0, limit)
+        .map((r) => {
+          const partyId = ctx.bindings.partyFk
+            ? String(r[ctx.bindings.partyFk] ?? "")
+            : "";
+          return {
+            ...r,
+            party_id: partyId || undefined,
+            nome: partyId ? nameByParty.get(partyId) : undefined,
+            name: partyId ? nameByParty.get(partyId) : undefined,
+          };
+        });
+
+      return {
+        count: items.length,
+        items,
+        filtered: overdue.length > 0,
+        ledger: ctx.bindings.ledger,
+      };
     },
   },
   {
     id: "survey_overview",
-    title: "Visão de pesquisas",
-    description: "Amostra de respostas de survey/NPS (score e sentimento).",
+    title: "Pesquisas e NPS",
+    description:
+      "Amostra de respostas de pesquisas ou NPS (nota e sentimento, quando existirem).",
     domain: "any",
     requiredRoles: ["survey"],
     inputSchema: [
@@ -391,8 +532,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "risk_series",
-    title: "Série de risco",
-    description: "Últimos snapshots de risco/churn histórico.",
+    title: "Sinal de churn",
+    description:
+      "Snapshots históricos de risco ou churn da base. Útil para ver tendência, sem disparar ações.",
     domain: "any",
     requiredRoles: ["risk_snapshot"],
     inputSchema: [
@@ -412,8 +554,9 @@ export const capabilityTemplates: CapabilityTemplate[] = [
   },
   {
     id: "location_summary",
-    title: "Resumo do local",
-    description: "Retorna uma unidade/filial e métricas se existirem no schema.",
+    title: "Resumo da unidade",
+    description:
+      "Dados de uma unidade/filial e métricas disponíveis no schema. Informe o ID da unidade.",
     domain: "any",
     requiredRoles: ["location"],
     inputSchema: [
@@ -587,6 +730,7 @@ export const capabilityTemplates: CapabilityTemplate[] = [
       return { products };
     },
   },
+  ...engineeringCapabilityTemplates,
   ...playbookTemplates,
 ];
 

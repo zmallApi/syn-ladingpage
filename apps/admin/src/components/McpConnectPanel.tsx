@@ -16,7 +16,6 @@ interface Props {
   serverId: string;
   clients?: McpClientSnippet[] | null;
   claudeDesktopStdio?: unknown;
-  tools?: string[];
 }
 
 export function McpConnectPanel({
@@ -25,7 +24,6 @@ export function McpConnectPanel({
   serverId,
   clients,
   claudeDesktopStdio,
-  tools,
 }: Props) {
   const snippets = clients?.length
     ? clients.map((c) => ({
@@ -60,11 +58,6 @@ export function McpConnectPanel({
           </h2>
         </div>
       </div>
-
-      <p className="mb-3 text-xs text-slate-500">
-        Um endpoint para Cursor, Claude, VS Code, Windsurf e ChatGPT — só muda o formato do
-        JSON. Tools: {tools?.length ? tools.join(", ") : "carregando…"}.
-      </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <code className="min-w-0 flex-1 break-all rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-cyan">
@@ -158,7 +151,9 @@ export function McpConnectPanel({
 
 function injectApiKey(config: unknown, apiKey: string): Record<string, unknown> {
   const raw = JSON.stringify(config ?? {});
-  const withKey = raw.replaceAll("<PLATFORM_API_KEY>", apiKey);
+  const withKey = raw
+    .replaceAll("<TENANT_API_KEY>", apiKey)
+    .replaceAll("<PLATFORM_API_KEY>", apiKey);
   try {
     return JSON.parse(withKey) as Record<string, unknown>;
   } catch {

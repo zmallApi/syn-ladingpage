@@ -1,5 +1,16 @@
 # Synapsee IA
 
+> **O Synapsee não executa trabalho. Ele prepara trabalho.**
+
+A plataforma transforma conhecimento disperso em contexto estruturado, organiza esse contexto em capacidades reutilizáveis, orquestra essas capacidades em **missões** e entrega **Mission Packages** para que agentes de IA executem o trabalho com segurança.
+
+No Engineering, a missão **Implementar Story** (Story OS) leva a história até o pack de implementação: Understand → Refine → Impact → Plan → Execute. O desenvolvedor deixa de descobrir o *quê* e foca no *como*.
+
+> **Categoria:** Context Operating System — Knowledge → Context → Capability → Mission → Agent.  
+> **Mantra:** Fatos → Contexto → Conhecimento → Missão → Execução.
+
+Docs: [POSITIONING](docs/POSITIONING.md) · [Mission Engine](docs/PLAN-MISSION-ENGINE.md) · [Story OS](docs/PLAN-STORY-OS.md) · [Multi-tenant](docs/PLAN-MULTI-TENANT.md) · [Deploy VPS](docs/DEPLOY-VPS.md)
+
 Monorepo: **landing** (marketing) + **admin** (operação do backend) + design tokens compartilhados.
 
 ## Quick start — Landing
@@ -17,7 +28,30 @@ npm run dev:landing
 
 Abre em [http://localhost:5173](http://localhost:5173). A API local do waitlist roda em `:3001` (proxy automático).
 
-## Quick start — Admin
+## Quick start — Plataforma (API + Admin + Postgres)
+
+Na raiz do monorepo (Docker Desktop ligado para o banco demo):
+
+```bash
+npm install
+cp apps/api/.env.example apps/api/.env       # se ainda não existir
+cp apps/admin/.env.example apps/admin/.env   # VITE_USE_MOCK=false
+npm run dev
+```
+
+Sobe Postgres (`:5433`), API (`:3000`) e Admin (`:5174`). API key: `dev-key`.
+
+No Windows também pode dar duplo clique em `start-platform.cmd`.
+
+Flags:
+
+```bash
+npm run dev -- --no-db        # sem Docker/Postgres
+npm run dev -- --landing      # inclui landing :5173
+npm run dev -- --with-mysql   # sobe MySQL demo :3307 também
+```
+
+## Quick start — Admin (só front)
 
 Painel operacional com wizard visual (conectar → schema → gerar → testar), mesmo design da landing.
 

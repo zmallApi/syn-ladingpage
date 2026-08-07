@@ -14,6 +14,8 @@ export const CAPABILITY_ALIASES: Record<string, string> = {
   overdue_finance: "overdue_ledger",
   nps_overview: "survey_overview",
   churn_snapshot: "risk_series",
+  /** Legacy Discovery → Story OS Understand */
+  discover_story: "eng_understand_story",
 };
 
 export function resolveCapabilityId(id: string): string {
