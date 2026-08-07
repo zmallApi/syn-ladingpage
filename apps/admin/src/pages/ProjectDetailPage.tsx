@@ -302,9 +302,10 @@ export function ProjectDetailPage() {
                   Conectar Cursor / Claude / ChatGPT
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  O agente chama{" "}
-                  <code className="text-slate-400">run_mission</code> e recebe o
-                  Mission Package.
+                  Engineering não usa tabelas de ERP. O agente chama{" "}
+                  <code className="text-slate-400">run_mission</code>{" "}
+                  (Implementar Story) ou as tools Story OS (Understand → Execute)
+                  e recebe o Mission Package. Contexto vem da Knowledge Layer.
                 </p>
               </div>
               <McpConnectPanel

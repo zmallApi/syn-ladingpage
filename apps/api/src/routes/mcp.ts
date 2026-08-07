@@ -292,14 +292,27 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
         process.env.PUBLIC_API_URL?.replace(/\/$/, "") ??
         `${req.protocol}://${req.headers.host}`;
 
-      const crudTools = [
-        "list_exposed_resources",
-        "describe_resource",
-        "query_records",
-        "get_record",
-        "create_record",
-      ];
-      const capTools = listCapabilityToolNames(publicProject.activeCapabilities);
+      const isEngineering = publicProject.vertical === "engineering";
+      const crudTools = isEngineering
+        ? []
+        : [
+            "list_exposed_resources",
+            "describe_resource",
+            "query_records",
+            "get_record",
+            "create_record",
+          ];
+      const capTools = listCapabilityToolNames(
+        isEngineering && !(publicProject.activeCapabilities?.length)
+          ? [
+              "eng_understand_story",
+              "eng_refine_story",
+              "eng_impact_analysis",
+              "eng_implementation_plan",
+              "eng_execute_context",
+            ]
+          : publicProject.activeCapabilities,
+      );
       const serverId = `synapsee-${record.id.slice(0, 8)}`;
       const url = `${base}/p/${record.id}/mcp`;
       const apiKey = "<TENANT_API_KEY>";
@@ -308,8 +321,9 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
 
       return {
         name: `Synapsee — ${publicProject.name}`,
-        description:
-          "MCP gerado pelo Synapsee IA. Consulta o banco do cliente ao vivo (sem importar dados).",
+        description: isEngineering
+          ? "MCP Synapsee Context OS (Engineering). Missões Story OS e Knowledge Layer — sem ERP."
+          : "MCP gerado pelo Synapsee IA. Consulta o banco do cliente ao vivo (sem importar dados).",
         url,
         transport: "streamable-http",
         headers: {
@@ -317,6 +331,7 @@ export const mcpRoutes: FastifyPluginAsync = async (app) => {
         },
         tools: [...crudTools, ...capTools],
         activeCapabilities: publicProject.activeCapabilities,
+        vertical: publicProject.vertical,
         connectionMode: publicProject.connectionMode,
         clients,
         /** @deprecated use clients[].config — kept for older admin builds */

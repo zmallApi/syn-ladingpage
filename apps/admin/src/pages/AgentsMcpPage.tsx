@@ -6,6 +6,14 @@ import { StatusBadge } from "../components/StatusBadge";
 import { CapabilitiesPanel } from "../components/CapabilitiesPanel";
 import { McpConnectPanel } from "../components/McpConnectPanel";
 
+const STORY_OS_STAGES = [
+  { capabilityId: "eng_understand_story", label: "Understand" },
+  { capabilityId: "eng_refine_story", label: "Refine" },
+  { capabilityId: "eng_impact_analysis", label: "Impact" },
+  { capabilityId: "eng_implementation_plan", label: "Plan" },
+  { capabilityId: "eng_execute_context", label: "Execute" },
+] as const;
+
 function projectBadgeStatus(
   p: Project,
 ): "connected" | "pending" | "error" | "online" | "offline" {
@@ -59,7 +67,8 @@ function AgentsMcpPicker() {
           Conectar agentes
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Escolha o sistema para ver o endpoint MCP e as ferramentas de negócio.
+          Escolha o sistema para ver o endpoint MCP e as ferramentas (Business ou
+          Engineering / Story OS).
         </p>
       </div>
 
@@ -70,14 +79,15 @@ function AgentsMcpPicker() {
         <div className="rounded-2xl border border-dashed border-border bg-surface-card/50 px-6 py-16 text-center">
           <p className="text-slate-400">Nenhum sistema ainda.</p>
           <Link to="/projects/new" className="mt-4 inline-block text-sm text-cyan hover:underline">
-            Conectar primeiro banco →
+            Criar primeiro sistema →
           </Link>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {projects.map((p) => {
-          const ready = p.exposedResources.length > 0;
+          const isEng = p.vertical === "engineering";
+          const ready = isEng || p.exposedResources.length > 0;
           return (
             <Link
               key={p.id}
@@ -88,17 +98,24 @@ function AgentsMcpPicker() {
                 <div className="min-w-0">
                   <h2 className="font-semibold text-white">{p.name}</h2>
                   <p className="mt-0.5 break-all font-mono text-[11px] text-slate-500">
-                    {p.connectionMode === "edge"
-                      ? `${p.engine} · Edge`
-                      : `${p.engine} · ${p.host}:${p.port}`}
+                    {isEng
+                      ? "Context OS · Engineering"
+                      : p.connectionMode === "edge"
+                        ? `${p.engine} · Edge`
+                        : `${p.engine} · ${p.host}:${p.port}`}
                   </p>
                 </div>
-                <StatusBadge status={projectBadgeStatus(p)} />
+                <StatusBadge
+                  status={projectBadgeStatus(p)}
+                  variant={isEng ? "engineering" : "business"}
+                />
               </div>
               <p className="text-xs text-slate-500">
-                {ready
-                  ? `${p.exposedResources.length} recurso(s) · ${(p.activeCapabilities ?? []).length} capacidade(s)`
-                  : "Exponha recursos no wizard antes de conectar agentes"}
+                {isEng
+                  ? "Story OS · run_mission / Understand→Execute"
+                  : ready
+                    ? `${p.exposedResources.length} recurso(s) · ${(p.activeCapabilities ?? []).length} capacidade(s)`
+                    : "Exponha recursos no wizard antes de conectar agentes"}
               </p>
               <p className="mt-3 text-xs font-medium text-cyan">
                 Abrir MCP e ferramentas →
@@ -107,6 +124,67 @@ function AgentsMcpPicker() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function EngineeringMcpTools({ project }: { project: Project }) {
+  const caps = project.activeCapabilities?.length
+    ? project.activeCapabilities
+    : STORY_OS_STAGES.map((s) => s.capabilityId);
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface-card p-4 card-glow sm:p-5">
+      <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+        Ferramentas MCP
+      </p>
+      <h2 className="mt-1 text-sm font-semibold text-white">
+        Story OS · Engineering
+      </h2>
+      <p className="mt-2 text-sm text-slate-400">
+        Não usa tabelas de ERP. O agente chama{" "}
+        <code className="text-slate-300">run_mission</code> (Implementar Story) ou
+        as capabilities do pipeline — contexto vem da Knowledge Layer (GitHub /
+        ClickUp via Edge).
+      </p>
+      <ul className="mt-4 space-y-2">
+        <li className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-slate-300">
+          <span className="font-medium text-white">list_missions</span>
+          <span className="text-slate-500"> · catálogo de missões</span>
+        </li>
+        <li className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-slate-300">
+          <span className="font-medium text-white">run_mission</span>
+          <span className="text-slate-500">
+            {" "}
+            · implement_story → Mission Package
+          </span>
+        </li>
+        {STORY_OS_STAGES.map((stage) => (
+          <li
+            key={stage.capabilityId}
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-slate-300"
+          >
+            <span className="font-medium text-white">
+              cap_{stage.capabilityId}
+            </span>
+            <span className="text-slate-500">
+              {" "}
+              · {stage.label}
+              {!caps.includes(stage.capabilityId) ? " (auto no Engineering)" : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[11px] text-slate-500">
+        Configure fontes e rode missões em{" "}
+        <Link
+          to={`/projects/${project.id}`}
+          className="text-cyan hover:underline"
+        >
+          Detalhe do sistema
+        </Link>
+        .
+      </p>
     </div>
   );
 }
@@ -129,7 +207,8 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
         }
         if (cancelled) return;
         setProject(p);
-        if (p.exposedResources.length) {
+        const isEng = p.vertical === "engineering";
+        if (isEng || p.exposedResources.length) {
           try {
             const manifest = await api.fetchMcpManifest(p.id);
             if (!cancelled) setMcpManifest(manifest);
@@ -151,7 +230,8 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
   if (loading) return <p className="text-sm text-slate-500">Carregando...</p>;
   if (!project) return null;
 
-  const ready = project.exposedResources.length > 0;
+  const isEng = project.vertical === "engineering";
+  const ready = isEng || project.exposedResources.length > 0;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -164,11 +244,16 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
             {project.name}
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            MCP e ferramentas de negócio deste sistema
+            {isEng
+              ? "MCP · Context Operating System · Engineering"
+              : "MCP e ferramentas de negócio deste sistema"}
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <StatusBadge status={projectBadgeStatus(project)} />
+          <StatusBadge
+            status={projectBadgeStatus(project)}
+            variant={isEng ? "engineering" : "business"}
+          />
           <Link
             to={`/projects/${project.id}`}
             className="rounded-lg border border-border px-3 py-2 text-xs text-slate-300 hover:border-cyan/40 hover:text-cyan"
@@ -180,7 +265,7 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
-      {!ready && (
+      {!ready && !isEng && (
         <div className="mb-6 rounded-2xl border border-dashed border-border bg-surface-card/50 p-5">
           <p className="text-sm text-slate-400">
             Este sistema ainda não tem recursos expostos. Conclua o wizard para
@@ -210,20 +295,24 @@ function AgentsMcpDetail({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <CapabilitiesPanel
-        project={project}
-        onProjectUpdate={async (updated) => {
-          setProject(updated);
-          if (updated.exposedResources.length) {
-            try {
-              const manifest = await api.fetchMcpManifest(updated.id);
-              setMcpManifest(manifest);
-            } catch {
-              /* keep previous */
+      {isEng ? (
+        <EngineeringMcpTools project={project} />
+      ) : (
+        <CapabilitiesPanel
+          project={project}
+          onProjectUpdate={async (updated) => {
+            setProject(updated);
+            if (updated.exposedResources.length) {
+              try {
+                const manifest = await api.fetchMcpManifest(updated.id);
+                setMcpManifest(manifest);
+              } catch {
+                /* keep previous */
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -233,6 +233,25 @@ export function CapabilitiesPanel({
       .slice()
       .sort((a, b) => a.resource.localeCompare(b.resource)) ?? [];
 
+  if (project.vertical === "engineering") {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-surface-card/50 p-5">
+        <p className="text-xs font-medium uppercase tracking-widest text-cyan">
+          Capacidades
+        </p>
+        <h2 className="mt-1 text-sm font-semibold text-white">
+          Engineering usa Story OS
+        </h2>
+        <p className="mt-2 text-sm text-slate-400">
+          Capacidades de negócio (ERP) não se aplicam aqui. Conecte o MCP na aba
+          Agente — tools:{" "}
+          <code className="text-slate-300">run_mission</code>, Understand →
+          Execute.
+        </p>
+      </div>
+    );
+  }
+
   if (!project.exposedResources.length) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface-card/50 p-5">
